@@ -16,9 +16,10 @@ export default function ShopScreen({ game }) {
   ];
   const activeTab = tabs.find(t => t.id === shopTab);
 
-  // Sort items by unlockLevel for display
+  // Sort items by unlockLevel for display, filter out boss drops
   const sortedItems = activeTab.items
     .map((item, idx) => ({ item, idx }))
+    .filter(({ item }) => !item.bossOnly)
     .sort((a, b) => (a.item.unlockLevel ?? 0) - (b.item.unlockLevel ?? 0));
 
   return (

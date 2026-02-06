@@ -3,6 +3,9 @@ import {
   LOCATIONS, FISH_DATABASE, RODS, BAITS, LINES, ACHIEVEMENTS,
   RARITY_NAMES, xpForLevel, SAVE_KEY,
   VARIANTS, VARIANT_ORDER, FISH_BAIT_BONUS, INVENTORY_CAP,
+  WEATHER_TYPES, WEATHER_CYCLE_MS,
+  WAIT_EVENTS, WAIT_EVENT_CHANCE, WAIT_EVENT_TIMEOUT,
+  MISSION_TEMPLATES, MISSION_REWARDS, BOSS_FISH,
 } from "../data/gameData";
 import {
   playSplash, playBite, playReel, stopReel, updateReelTension,
@@ -29,6 +32,15 @@ const calculateUnlocks = (oldLevel, newLevel) => {
   }
   return unlocks;
 };
+
+function seededRng(seed) {
+  let s = seed % 2147483647;
+  if (s <= 0) s += 2147483646;
+  return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+}
+function getDayNumber() {
+  return Math.floor(Date.now() / 86400000);
+}
 
 export default function useGameState() {
   const [saved] = useState(() => loadSave());
@@ -65,6 +77,28 @@ export default function useGameState() {
   const [goldenCaught, setGoldenCaught] = useState(saved?.goldenCaught ?? 0);
   const [giantCaught, setGiantCaught] = useState(saved?.giantCaught ?? 0);
   const [fishUsedAsBait, setFishUsedAsBait] = useState(saved?.fishUsedAsBait ?? 0);
+
+  // Phase 3 states
+  const [currentWeather, setCurrentWeather] = useState(WEATHER_TYPES[0]);
+  const [waitEvent, setWaitEvent] = useState(null);
+  const [waitEventResult, setWaitEventResult] = useState(null);
+  const [lastMissionDay, setLastMissionDay] = useState(saved?.lastMissionDay ?? 0);
+  const [dailyMissions, setDailyMissions] = useState(saved?.dailyMissions ?? []);
+  const [missionProgress, setMissionProgress] = useState(saved?.missionProgress ?? {});
+  const [missionsCompleted, setMissionsCompleted] = useState(saved?.missionsCompleted ?? 0);
+  const [missionStreak, setMissionStreak] = useState(saved?.missionStreak ?? 0);
+  const [bossesDefeated, setBossesDefeated] = useState(saved?.bossesDefeated ?? []);
+  const [locationCatches, setLocationCatches] = useState(saved?.locationCatches ?? {});
+  const [currentBoss, setCurrentBoss] = useState(null);
+  const [bossHp, setBossHp] = useState(0);
+  const bossHpRef = useRef(0);
+  const [migrationDay, setMigrationDay] = useState(saved?.migrationDay ?? 0);
+  const [dailyMigrations, setDailyMigrations] = useState(saved?.dailyMigrations ?? []);
+  const [weathersFished, setWeathersFished] = useState(() => new Set(saved?.weathersFished ?? []));
+  const [nocturnalCaught, setNocturnalCaught] = useState(saved?.nocturnalCaught ?? 0);
+  const [waitEventsCollected, setWaitEventsCollected] = useState(saved?.waitEventsCollected ?? 0);
+  const [migratoryCaught, setMigratoryCaught] = useState(saved?.migratoryCaught ?? 0);
+  const currentBossRef = useRef(null);
 
   // Audio & Level Up
   const [isMuted, setIsMuted] = useState(saved?.isMuted ?? false);
@@ -113,6 +147,12 @@ export default function useGameState() {
       isMuted,
       baitQuantities, fishInventory, fishBaitBonus,
       maxCombo, goldenCaught, giantCaught, fishUsedAsBait,
+      // Phase 3
+      lastMissionDay, dailyMissions, missionProgress, missionsCompleted, missionStreak,
+      bossesDefeated, locationCatches,
+      migrationDay, dailyMigrations,
+      weathersFished: Array.from(weathersFished),
+      nocturnalCaught, waitEventsCollected, migratoryCaught,
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
   }, [
@@ -124,6 +164,10 @@ export default function useGameState() {
     isMuted,
     baitQuantities, fishInventory, fishBaitBonus,
     maxCombo, goldenCaught, giantCaught, fishUsedAsBait,
+    lastMissionDay, dailyMissions, missionProgress, missionsCompleted, missionStreak,
+    bossesDefeated, locationCatches,
+    migrationDay, dailyMigrations,
+    weathersFished, nocturnalCaught, waitEventsCollected, migratoryCaught,
   ]);
 
   // Tutorial progression: advance step when gamePhase changes
@@ -179,6 +223,68 @@ export default function useGameState() {
     return () => stopReel();
   }, [tension, gamePhase]);
 
+  // Weather cycle
+  useEffect(() => {
+    const rollWeather = () => {
+      const idx = Math.floor(Math.random() * WEATHER_TYPES.length);
+      setCurrentWeather(WEATHER_TYPES[idx]);
+    };
+    rollWeather();
+    const interval = setInterval(rollWeather, WEATHER_CYCLE_MS);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Daily mission generation
+  useEffect(() => {
+    const today = getDayNumber();
+    if (today !== lastMissionDay) {
+      if (lastMissionDay === today - 1) {
+        setMissionStreak(prev => prev + 1);
+      } else if (lastMissionDay < today - 1 && lastMissionDay > 0) {
+        setMissionStreak(0);
+      }
+      const rng = seededRng(today * 31337);
+      const difficulties = ["easy", "medium", "hard"];
+      const rarityLabels = ["raro", "épico", "lendário"];
+      const missions = difficulties.map((diff, i) => {
+        const templateIdx = Math.floor(rng() * MISSION_TEMPLATES.length);
+        const template = MISSION_TEMPLATES[templateIdx];
+        const target = template.scaling[i];
+        return {
+          id: `${today}_${i}`,
+          templateId: template.id,
+          difficulty: diff,
+          target,
+          textPt: template.textPt.replace("{n}", target).replace("{rarity}", rarityLabels[i]),
+          completed: false,
+        };
+      });
+      setDailyMissions(missions);
+      setMissionProgress({});
+      setLastMissionDay(today);
+    }
+  }, [lastMissionDay]);
+
+  // Daily migration generation
+  useEffect(() => {
+    const today = getDayNumber();
+    if (today !== migrationDay) {
+      const rng = seededRng(today * 7919);
+      const migrants = [];
+      const count = 2 + Math.floor(rng() * 2);
+      const candidates = FISH_DATABASE.filter(f => !f.nocturnal).slice();
+      for (let i = 0; i < count && candidates.length > 0; i++) {
+        const idx = Math.floor(rng() * candidates.length);
+        const fish = candidates.splice(idx, 1)[0];
+        const otherLocs = LOCATIONS.filter(l => l.id !== fish.location);
+        const newLoc = otherLocs[Math.floor(rng() * otherLocs.length)];
+        migrants.push({ fishId: fish.id, originalLocation: fish.location, migratedTo: newLoc.id });
+      }
+      setDailyMigrations(migrants);
+      setMigrationDay(today);
+    }
+  }, [migrationDay]);
+
   // Roll variant
   const rollVariant = useCallback(() => {
     const roll = Math.random();
@@ -209,8 +315,13 @@ export default function useGameState() {
       maxCombo, goldenCaught, giantCaught,
       trophyCount: fishInventory.filter(f => f.isTrophy).length,
       fishUsedAsBait,
+      // Phase 3
+      weathersFished: weathersFished instanceof Set ? weathersFished.size : (Array.isArray(weathersFished) ? weathersFished.length : 0),
+      nocturnalCaught, missionsCompleted,
+      bossesDefeated: bossesDefeated.length,
+      waitEventsCollected, migratoryCaught,
     };
-  }, [caughtFish, totalCaught, totalGoldEarned, level, biggestFish, maxCombo, goldenCaught, giantCaught, fishInventory, fishUsedAsBait]);
+  }, [caughtFish, totalCaught, totalGoldEarned, level, biggestFish, maxCombo, goldenCaught, giantCaught, fishInventory, fishUsedAsBait, weathersFished, nocturnalCaught, missionsCompleted, bossesDefeated, waitEventsCollected, migratoryCaught]);
 
   // Check achievements
   const checkAchievements = useCallback(() => {
@@ -226,7 +337,7 @@ export default function useGameState() {
 
   useEffect(() => {
     checkAchievements();
-  }, [totalCaught, level, gold, caughtFish, maxCombo, goldenCaught, giantCaught, fishInventory, fishUsedAsBait]);
+  }, [totalCaught, level, gold, caughtFish, maxCombo, goldenCaught, giantCaught, fishInventory, fishUsedAsBait, weathersFished, nocturnalCaught, missionsCompleted, bossesDefeated, waitEventsCollected, migratoryCaught]);
 
   // Add XP and handle level up
   const addXp = useCallback((amount) => {
@@ -248,18 +359,48 @@ export default function useGameState() {
     });
   }, [level]);
 
-  // Select fish based on location, bait, rod
+  // Select fish based on location, bait, rod, weather, migrations
   const selectFish = useCallback(() => {
     const loc = LOCATIONS[currentLocation];
     const bait = BAITS[equippedBait];
     const rod = RODS[equippedRod];
-    const available = FISH_DATABASE.filter(f => f.location === loc.id);
+    const isNight = currentWeather.id === "night";
+
+    // Track weather for achievement
+    setWeathersFished(prev => {
+      const next = new Set(prev);
+      next.add(currentWeather.id);
+      return next;
+    });
+
+    // Boss spawn check
+    const locCatches = locationCatches[loc.id] || 0;
+    const boss = BOSS_FISH.find(b => b.location === loc.id);
+    if (boss && locCatches >= boss.spawnAfterCatches && !bossesDefeated.includes(boss.id) && Math.random() < boss.spawnChance) {
+      return { ...boss, isBoss: true };
+    }
+
+    // Build fish pool: local fish + migratory fish
+    let available = FISH_DATABASE.filter(f => {
+      if (f.location !== loc.id) return false;
+      if (f.nocturnal && !isNight) return false;
+      return true;
+    });
+
+    // Add migratory fish to this location
+    const migrantsHere = dailyMigrations.filter(m => m.migratedTo === loc.id);
+    for (const m of migrantsHere) {
+      const fish = FISH_DATABASE.find(f => f.id === m.fishId);
+      if (fish && !(fish.nocturnal && !isNight)) {
+        available.push({ ...fish, isMigratory: true });
+      }
+    }
 
     const rarityWeights = { common: 50, uncommon: 25, rare: 12, epic: 5, legendary: 2, mythic: 0.5 };
 
     const weightedFish = available.map(f => {
       let weight = rarityWeights[f.rarity] || 1;
-      if (f.rarity !== "common") weight *= (1 + bait.rarityBonus + rod.luck + fishBaitBonus);
+      if (f.rarity !== "common") weight *= (1 + bait.rarityBonus + rod.luck + fishBaitBonus + currentWeather.rarityBonus);
       return { fish: f, weight };
     });
 
@@ -271,7 +412,7 @@ export default function useGameState() {
       if (roll <= 0) return wf.fish;
     }
     return weightedFish[0].fish;
-  }, [currentLocation, equippedBait, equippedRod, fishBaitBonus]);
+  }, [currentLocation, equippedBait, equippedRod, fishBaitBonus, currentWeather, dailyMigrations, locationCatches, bossesDefeated]);
 
   // Start casting
   const startCasting = () => {
@@ -323,7 +464,7 @@ export default function useGameState() {
   // Hook fish
   const hookFish = () => {
     const fish = selectFish();
-    const variant = rollVariant();
+    const variant = fish.isBoss ? VARIANTS.normal : rollVariant();
     const baseWeight = fish.minWeight + Math.random() * (fish.maxWeight - fish.minWeight);
     const weight = Math.round(baseWeight * variant.weightMultiplier * 100) / 100;
     setCurrentFish(fish);
@@ -338,8 +479,19 @@ export default function useGameState() {
     const initialDir = Math.random() > 0.5 ? 1 : -1;
     setFishDir(initialDir);
     fishDirRef.current = initialDir;
-    const variantLabel = variant.id !== "normal" ? ` [${variant.namePt}]` : "";
-    setMessage(`${fish.emoji} ${fish.name}${variantLabel} (${RARITY_NAMES[fish.rarity]}) mordeu! Mantenha no alvo!`);
+
+    if (fish.isBoss) {
+      setCurrentBoss(fish);
+      currentBossRef.current = fish;
+      setBossHp(fish.hp);
+      bossHpRef.current = fish.hp;
+      setMessage(`⚔️ BOSS: ${fish.emoji} ${fish.name}! Prepare-se para a luta!`);
+    } else {
+      setCurrentBoss(null);
+      currentBossRef.current = null;
+      const variantLabel = variant.id !== "normal" ? ` [${variant.namePt}]` : "";
+      setMessage(`${fish.emoji} ${fish.name}${variantLabel} (${RARITY_NAMES[fish.rarity]}) mordeu! Mantenha no alvo!`);
+    }
   };
 
   // Handle key events
@@ -396,10 +548,53 @@ export default function useGameState() {
     return () => clearInterval(interval);
   }, [gamePhase, castDirection]);
 
-  // Wait timer
+  // Collect wait event
+  const collectWaitEvent = useCallback(() => {
+    if (!waitEvent) return;
+    const evt = waitEvent.event;
+    setWaitEvent(null);
+    setWaitEventsCollected(prev => prev + 1);
+    if (evt.reward === "gold") {
+      setGold(prev => prev + evt.rewardAmount);
+      setTotalGoldEarned(prev => prev + evt.rewardAmount);
+    }
+    if (evt.reward === "xp") addXp(evt.rewardAmount);
+    if (evt.reward === "bait") {
+      const baitItem = BAITS[equippedBait];
+      if (baitItem.consumable) {
+        setBaitQuantities(prev => ({ ...prev, [baitItem.id]: (prev[baitItem.id] || 0) + evt.rewardAmount }));
+      }
+    }
+    setWaitEventResult({ event: evt, reward: evt.reward, amount: evt.rewardAmount });
+    setTimeout(() => setWaitEventResult(null), 1500);
+  }, [waitEvent, equippedBait, addXp]);
+
+  // Wait timer + wait events
   useEffect(() => {
-    if (gamePhase !== "waiting") return;
+    if (gamePhase !== "waiting") {
+      setWaitEvent(null);
+      return;
+    }
     const interval = setInterval(() => {
+      // Wait event roll
+      setWaitEvent(prev => {
+        if (prev) {
+          if (Date.now() > prev.expiresAt) return null;
+          return prev;
+        }
+        if (Math.random() < WAIT_EVENT_CHANCE) {
+          const roll = Math.random();
+          let cum = 0;
+          for (const evt of WAIT_EVENTS) {
+            cum += evt.chance;
+            if (roll <= cum) {
+              return { event: evt, expiresAt: Date.now() + WAIT_EVENT_TIMEOUT };
+            }
+          }
+        }
+        return null;
+      });
+
       setWaitTimer(prev => {
         if (prev <= 0) {
           setBobberExclamation(true);
@@ -428,19 +623,64 @@ export default function useGameState() {
 
     const rod = RODS[equippedRod];
     const line = LINES[equippedLine];
-    const difficulty = currentFish.difficulty;
-    const speed = currentFish.speed;
+    const isBoss = !!currentBossRef.current;
+    const bossData = currentBossRef.current;
+    const difficulty = currentFish.difficulty + (currentWeather.difficultyAdd || 0);
+    const speed = currentFish.speed * (isBoss ? 1.3 : 1);
     const catchZoneSizeLocal = 15 + rod.tension * 3;
     const reelBonus = line.reelBonus ?? 1.0;
     let changeTimer = 0;
+    let patternTimer = 0;
+    let patternPhase = 0;
 
     const interval = setInterval(() => {
       changeTimer -= 1;
-      if (changeTimer <= 0) {
-        const newDir = Math.random() > 0.5 ? 1 : -1;
-        fishDirRef.current = newDir;
-        setFishDir(newDir);
-        changeTimer = Math.random() * 60 + 20;
+
+      // Boss movement patterns
+      if (isBoss && bossData) {
+        patternTimer += 1;
+        const pattern = bossData.pattern;
+
+        if (pattern === "zigzag") {
+          // Fast oscillation with increasing amplitude
+          if (changeTimer <= 0) {
+            fishDirRef.current = -fishDirRef.current;
+            setFishDir(fishDirRef.current);
+            changeTimer = 8 + Math.random() * 12;
+          }
+        } else if (pattern === "charge") {
+          // Rush then pause
+          if (changeTimer <= 0) {
+            patternPhase = (patternPhase + 1) % 3;
+            if (patternPhase === 0) {
+              fishDirRef.current = Math.random() > 0.5 ? 1 : -1;
+              setFishDir(fishDirRef.current);
+              changeTimer = 30 + Math.random() * 20;
+            } else {
+              changeTimer = 15;
+            }
+          }
+        } else if (pattern === "erratic") {
+          if (changeTimer <= 0) {
+            fishDirRef.current = Math.random() > 0.5 ? 1 : -1;
+            setFishDir(fishDirRef.current);
+            changeTimer = 5 + Math.random() * 15;
+          }
+        } else if (pattern === "dive") {
+          if (changeTimer <= 0) {
+            patternPhase = (patternPhase + 1) % 2;
+            fishDirRef.current = patternPhase === 0 ? 1 : -1;
+            setFishDir(fishDirRef.current);
+            changeTimer = patternPhase === 0 ? 40 : 25;
+          }
+        }
+      } else {
+        if (changeTimer <= 0) {
+          const newDir = Math.random() > 0.5 ? 1 : -1;
+          fishDirRef.current = newDir;
+          setFishDir(newDir);
+          changeTimer = Math.random() * 60 + 20;
+        }
       }
 
       setFishPosition(prev => {
@@ -467,11 +707,12 @@ export default function useGameState() {
       setCatchZonePos(currentCatchZone => {
         const fp = fishPositionRef.current;
         const inZone = Math.abs(fp - currentCatchZone) < catchZoneSizeLocal / 2;
+        const tensionMult = isBoss ? 1.3 : 1;
 
         setTension(prev => {
           let newTension = prev;
           if (keysRef.current.space && !inZone) {
-            newTension += 0.8 * difficulty / line.strength;
+            newTension += 0.8 * difficulty * tensionMult / line.strength;
           } else if (inZone && keysRef.current.space) {
             newTension -= 0.3 * line.strength;
           } else {
@@ -480,19 +721,65 @@ export default function useGameState() {
           return Math.max(0, Math.min(100, newTension));
         });
 
-        setReelProgress(prev => {
+        if (isBoss) {
+          // Boss: reduce HP instead of increasing reel progress
           if (inZone) {
-            return Math.min(100, prev + 0.3 * rod.power * reelBonus);
+            bossHpRef.current = Math.max(0, bossHpRef.current - 0.5 * rod.power * reelBonus);
+            setBossHp(bossHpRef.current);
+            const bossMaxHp = bossData ? bossData.hp : 100;
+            setReelProgress(((bossMaxHp - bossHpRef.current) / bossMaxHp) * 100);
+          } else {
+            // Boss recovers a tiny bit
+            const bossMaxHp = bossData ? bossData.hp : 100;
+            bossHpRef.current = Math.min(bossMaxHp, bossHpRef.current + 0.05 * difficulty);
+            setBossHp(bossHpRef.current);
+            setReelProgress(((bossMaxHp - bossHpRef.current) / bossMaxHp) * 100);
           }
-          return Math.max(0, prev - 0.15 * difficulty);
-        });
+        } else {
+          setReelProgress(prev => {
+            if (inZone) {
+              return Math.min(100, prev + 0.3 * rod.power * reelBonus);
+            }
+            return Math.max(0, prev - 0.15 * difficulty);
+          });
+        }
 
         return currentCatchZone;
       });
     }, 33);
 
     return () => clearInterval(interval);
-  }, [gamePhase, currentFish, equippedRod, equippedLine]);
+  }, [gamePhase, currentFish, equippedRod, equippedLine, currentWeather]);
+
+  // Mission progress tracking
+  const updateMissionProgress = useCallback((type, value) => {
+    setMissionProgress(prev => {
+      const next = { ...prev };
+      let anyCompleted = false;
+      setDailyMissions(missions => {
+        const updated = missions.map(m => {
+          if (m.completed) return m;
+          const template = MISSION_TEMPLATES.find(t => t.id === m.templateId);
+          if (!template || template.type !== type) return m;
+          const current = type === "combo" || type === "weight"
+            ? Math.max(next[m.id] || 0, value)
+            : (next[m.id] || 0) + value;
+          next[m.id] = current;
+          if (current >= m.target && !m.completed) {
+            anyCompleted = true;
+            const reward = MISSION_REWARDS[m.difficulty];
+            setGold(g => g + reward.gold);
+            setTotalGoldEarned(g => g + reward.gold);
+            setMissionsCompleted(c => c + 1);
+            return { ...m, completed: true };
+          }
+          return m;
+        });
+        return updated;
+      });
+      return next;
+    });
+  }, []);
 
   // Check win/lose conditions
   useEffect(() => {
@@ -502,6 +789,8 @@ export default function useGameState() {
       setGamePhase("escaped");
       setCatchResult(null);
       setComboCount(0);
+      setCurrentBoss(null);
+      currentBossRef.current = null;
       setMessage(`A linha arrebentou! ${currentFish?.name} escapou...`);
       if (!isMutedRef.current) playEscape();
       setTimeout(() => setGamePhase("idle"), 2500);
@@ -513,6 +802,36 @@ export default function useGameState() {
       const fish = currentFish;
       const weight = fishWeight;
       const variant = currentVariant || VARIANTS.normal;
+      const isBoss = !!fish.isBoss;
+      const isMigratory = !!fish.isMigratory;
+
+      // Location catch tracking
+      const loc = LOCATIONS[currentLocation];
+      setLocationCatches(prev => ({ ...prev, [loc.id]: (prev[loc.id] || 0) + 1 }));
+
+      if (isBoss) {
+        // Boss defeated!
+        setBossesDefeated(prev => [...prev, fish.id]);
+        // Reset location catches so boss can be re-fought later
+        setLocationCatches(prev => ({ ...prev, [loc.id]: 0 }));
+        // Grant boss drop
+        const dropItems = fish.dropType === "rods" ? RODS : fish.dropType === "baits" ? BAITS : LINES;
+        const dropIdx = dropItems.findIndex(item => item.id === fish.dropId);
+        if (dropIdx >= 0) {
+          if (fish.dropType === "rods") setOwnedRods(prev => prev.includes(dropIdx) ? prev : [...prev, dropIdx]);
+          else if (fish.dropType === "baits") setOwnedBaits(prev => prev.includes(dropIdx) ? prev : [...prev, dropIdx]);
+          else setOwnedLines(prev => prev.includes(dropIdx) ? prev : [...prev, dropIdx]);
+        }
+        const sellPrice = fish.basePrice;
+        setCatchResult({ fish, weight, sellPrice, variant, comboCount: comboCount + 1, comboMultiplier: 1, isBoss: true, dropType: fish.dropType, dropId: fish.dropId });
+        setTotalCaught(prev => prev + 1);
+        addXp(fish.xp || 500);
+        if (!isMutedRef.current) playCatch("mythic");
+        setCurrentBoss(null);
+        currentBossRef.current = null;
+        return;
+      }
+
       const priceRatio = 1 + (weight / variant.weightMultiplier - fish.minWeight) / (fish.maxWeight - fish.minWeight);
       const basePrice = Math.floor(fish.basePrice * priceRatio * variant.priceMultiplier);
       const newCombo = comboCount + 1;
@@ -521,15 +840,20 @@ export default function useGameState() {
       const comboMult = Math.min(1 + (newCombo - 1) * 0.5, 2.5);
       const sellPrice = Math.floor(basePrice * comboMult);
 
-      setCatchResult({ fish, weight, sellPrice, variant, comboCount: newCombo, comboMultiplier: comboMult });
+      // Migratory bonus XP
+      const xpBonus = isMigratory ? Math.floor(fish.xp * 0.5) : 0;
+
+      setCatchResult({ fish, weight, sellPrice, variant, comboCount: newCombo, comboMultiplier: comboMult, isMigratory });
 
       setTotalCaught(prev => prev + 1);
       if (weight > biggestFish) setBiggestFish(weight);
-      addXp(fish.xp);
+      addXp(fish.xp + xpBonus);
       if (!isMutedRef.current) playCatch(fish.rarity);
 
       if (variant.id === "golden") setGoldenCaught(prev => prev + 1);
       if (variant.id === "giant") setGiantCaught(prev => prev + 1);
+      if (fish.nocturnal) setNocturnalCaught(prev => prev + 1);
+      if (isMigratory) setMigratoryCaught(prev => prev + 1);
 
       setCaughtFish(prev => {
         const existing = prev[fish.id] || { count: 0, biggest: 0, smallest: Infinity };
@@ -544,6 +868,15 @@ export default function useGameState() {
           }
         };
       });
+
+      // Mission progress
+      updateMissionProgress("catch", 1);
+      updateMissionProgress("weight", weight);
+      updateMissionProgress("combo", newCombo);
+      // Rarity-based mission (rare+)
+      if (["rare", "epic", "legendary", "mythic"].includes(fish.rarity)) {
+        updateMissionProgress("catch_rarity", 1);
+      }
     }
   }, [tension, reelProgress, gamePhase]);
 
@@ -561,6 +894,7 @@ export default function useGameState() {
     if (!catchResult) return;
     setGold(prev => prev + catchResult.sellPrice);
     setTotalGoldEarned(prev => prev + catchResult.sellPrice);
+    updateMissionProgress("gold", catchResult.sellPrice);
     resetFishing();
   };
 
@@ -740,6 +1074,13 @@ export default function useGameState() {
     sellFish, keepFish, useFishAsBait,
     sellInventoryFish, bulkSellInventory, toggleTrophy, useInventoryFishAsBait,
     equipBait,
+    // Phase 3
+    currentWeather,
+    waitEvent, waitEventResult, collectWaitEvent,
+    dailyMissions, missionProgress, missionsCompleted, missionStreak,
+    currentBoss, bossHp,
+    bossesDefeated, locationCatches,
+    dailyMigrations,
     // Actions
     startCasting, releaseCast, resetFishing, buyItem, hookFish,
     // Save

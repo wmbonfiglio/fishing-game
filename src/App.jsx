@@ -5,6 +5,7 @@ import ShopScreen from "./components/ShopScreen";
 import CollectionScreen from "./components/CollectionScreen";
 import AchievementsScreen from "./components/AchievementsScreen";
 import InventoryScreen from "./components/InventoryScreen";
+import MissionsScreen from "./components/MissionsScreen";
 
 export default function FishingGame() {
   const game = useGameState();
@@ -15,6 +16,7 @@ export default function FishingGame() {
     case "collection":   return <CollectionScreen game={game} />;
     case "achievements": return <AchievementsScreen game={game} />;
     case "inventory":    return <InventoryScreen game={game} />;
+    case "missions":     return <MissionsScreen game={game} />;
     default:             return <GameScreen game={game} />;
   }
 }

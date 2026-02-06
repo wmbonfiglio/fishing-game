@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { LOCATIONS, FISH_DATABASE, RARITY_COLORS, RARITY_NAMES, TUTORIAL_STEPS, INVENTORY_CAP } from "../data/gameData";
+import { LOCATIONS, FISH_DATABASE, RARITY_COLORS, RARITY_NAMES, TUTORIAL_STEPS, INVENTORY_CAP, RODS, BAITS, LINES } from "../data/gameData";
 
 let particleId = 0;
 
@@ -19,6 +19,12 @@ export default function GameScreen({ game }) {
     levelUpData, setLevelUpData,
     comboCount, currentVariant, fishBaitBonus, baitQuantities, fishInventory,
     sellFish, keepFish, useFishAsBait,
+    // Phase 3
+    currentWeather,
+    waitEvent, waitEventResult, collectWaitEvent,
+    dailyMissions, missionProgress,
+    currentBoss, bossHp,
+    dailyMigrations,
   } = game;
 
   // Screen shake
@@ -84,6 +90,29 @@ export default function GameScreen({ game }) {
         ))}
       </div>
 
+      {/* Weather overlays */}
+      {currentWeather.id === "rain" && (
+        <div style={{
+          position: "absolute", inset: 0, pointerEvents: "none", zIndex: 1,
+          background: "rgba(80,130,180,0.08)",
+          backgroundImage: "repeating-linear-gradient(transparent, transparent 20px, rgba(150,200,255,0.06) 20px, rgba(150,200,255,0.06) 22px)",
+          animation: "rainFall 0.6s linear infinite",
+        }} />
+      )}
+      {currentWeather.id === "storm" && (
+        <div style={{
+          position: "absolute", inset: 0, pointerEvents: "none", zIndex: 1,
+          background: "rgba(20,20,40,0.2)",
+          animation: "stormFlash 4s ease-in-out infinite",
+        }} />
+      )}
+      {currentWeather.id === "night" && (
+        <div style={{
+          position: "absolute", inset: 0, pointerEvents: "none", zIndex: 1,
+          background: "rgba(10,10,40,0.35)",
+        }} />
+      )}
+
       {/* HUD - Top Bar */}
       <div style={{
         position: "absolute", top: 0, left: 0, right: 0, padding: "12px 16px",
@@ -107,8 +136,19 @@ export default function GameScreen({ game }) {
           <span style={{ fontSize: "15px", color: "#FFD700" }}>💰 {gold}</span>
         </div>
 
-        <div style={{ fontSize: "14px", color: "#8BB4D6" }}>
-          {loc.icon} {loc.name}
+        <div style={{ fontSize: "14px", color: "#8BB4D6", display: "flex", alignItems: "center", gap: "8px" }}>
+          <span>{loc.icon} {loc.name}</span>
+          <span style={{
+            padding: "2px 8px", borderRadius: "10px", fontSize: "12px",
+            background: currentWeather.id === "storm" ? "rgba(244,67,54,0.2)" :
+              currentWeather.id === "night" ? "rgba(100,100,200,0.2)" :
+              currentWeather.id === "rain" ? "rgba(100,180,255,0.2)" : "rgba(255,255,255,0.1)",
+            border: `1px solid ${currentWeather.id === "storm" ? "rgba(244,67,54,0.4)" :
+              currentWeather.id === "night" ? "rgba(100,100,200,0.4)" :
+              currentWeather.id === "rain" ? "rgba(100,180,255,0.4)" : "rgba(255,255,255,0.2)"}`,
+          }}>
+            {currentWeather.icon} {currentWeather.namePt}
+          </span>
         </div>
 
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
@@ -165,6 +205,7 @@ export default function GameScreen({ game }) {
           { icon: "🏪", label: "Loja", screen: "shop" },
           { icon: "🎒", label: `Inv (${fishInventory.length}/${INVENTORY_CAP})`, screen: "inventory" },
           { icon: "📖", label: "Coleção", screen: "collection" },
+          { icon: "📋", label: "Missões", screen: "missions" },
           { icon: "🏆", label: "Conquistas", screen: "achievements" },
         ].map(btn => (
           <button key={btn.screen} onClick={() => setScreen(btn.screen)} style={{
@@ -217,6 +258,45 @@ export default function GameScreen({ game }) {
                 }}>
                   {bobberExclamation ? "❗" : "🎣"}
                 </div>
+
+                {/* Wait event clickable */}
+                {waitEvent && !bobberExclamation && (
+                  <button
+                    onClick={collectWaitEvent}
+                    onTouchStart={(e) => { e.preventDefault(); collectWaitEvent(); }}
+                    style={{
+                      marginTop: "12px", padding: "10px 20px", fontSize: "32px",
+                      borderRadius: "50%", cursor: "pointer",
+                      background: "rgba(255,255,255,0.1)", border: "2px solid rgba(255,255,255,0.3)",
+                      animation: "waitEventBounce 0.6s ease-in-out infinite",
+                      position: "relative",
+                    }}
+                  >
+                    {waitEvent.event.icon}
+                    <div style={{
+                      position: "absolute", bottom: "-4px", left: "10%", right: "10%",
+                      height: "3px", borderRadius: "2px", background: "rgba(255,215,0,0.6)",
+                      animation: `waitEventTimer ${WAIT_EVENT_TIMEOUT}ms linear forwards`,
+                    }} />
+                  </button>
+                )}
+
+                {/* Wait event result toast */}
+                {waitEventResult && (
+                  <div style={{
+                    marginTop: "8px", padding: "6px 16px", borderRadius: "8px",
+                    background: waitEventResult.reward === "none" ? "rgba(150,150,150,0.2)" : "rgba(76,175,80,0.2)",
+                    border: `1px solid ${waitEventResult.reward === "none" ? "rgba(150,150,150,0.4)" : "rgba(76,175,80,0.4)"}`,
+                    color: waitEventResult.reward === "none" ? "#999" : "#81C784",
+                    fontSize: "14px", fontWeight: 600,
+                    animation: "popIn 0.3s ease-out",
+                  }}>
+                    {waitEventResult.reward === "gold" && `+${waitEventResult.amount} 💰`}
+                    {waitEventResult.reward === "xp" && `+${waitEventResult.amount} ✨ XP`}
+                    {waitEventResult.reward === "bait" && `+${waitEventResult.amount} iscas 🎣`}
+                    {waitEventResult.reward === "none" && "Nada útil... 🗑️"}
+                  </div>
+                )}
 
                 {/* FISGAR button - mobile hook */}
                 {bobberExclamation && (
@@ -286,12 +366,24 @@ export default function GameScreen({ game }) {
         {/* REELING MINIGAME */}
         {gamePhase === "reeling" && currentFish && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+            {/* Boss label */}
+            {currentBoss && (
+              <div style={{
+                padding: "6px 20px", borderRadius: "20px",
+                background: "rgba(244,67,54,0.2)", border: "2px solid #F44336",
+                color: "#FF6B6B", fontWeight: 800, fontSize: "16px", letterSpacing: "2px",
+                animation: "pulse 1.5s ease-in-out infinite",
+              }}>
+                ⚔️ BOSS
+              </div>
+            )}
+
             {/* Fish info */}
             <div style={{
               textAlign: "center", padding: "8px 20px", borderRadius: "8px",
-              background: "rgba(0,0,0,0.6)", border: `1px solid ${RARITY_COLORS[currentFish.rarity]}55`,
+              background: "rgba(0,0,0,0.6)", border: `1px solid ${currentBoss ? "#F44336" : RARITY_COLORS[currentFish.rarity] + "55"}`,
             }}>
-              {currentVariant && currentVariant.id !== "normal" && (
+              {currentVariant && currentVariant.id !== "normal" && !currentBoss && (
                 <span style={{
                   fontSize: "11px", padding: "2px 8px", borderRadius: "10px", marginRight: "8px",
                   background: currentVariant.id === "golden" ? "rgba(255,215,0,0.25)" : "rgba(156,39,176,0.25)",
@@ -302,7 +394,7 @@ export default function GameScreen({ game }) {
                 </span>
               )}
               <span style={{ fontSize: "20px" }}>{currentFish.emoji}</span>
-              <span style={{ fontSize: "16px", fontWeight: 700, color: RARITY_COLORS[currentFish.rarity], marginLeft: "8px" }}>
+              <span style={{ fontSize: "16px", fontWeight: 700, color: currentBoss ? "#FF6B6B" : RARITY_COLORS[currentFish.rarity], marginLeft: "8px" }}>
                 {currentFish.name}
               </span>
               <span style={{ fontSize: "13px", color: "#8899AA", marginLeft: "8px" }}>{fishWeight}kg</span>
@@ -348,21 +440,29 @@ export default function GameScreen({ game }) {
               {currentFish.emoji}
             </div>
 
-            {/* Progress bar */}
+            {/* Progress / Boss HP bar */}
             <div style={{ width: "300px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#6B8FA8", marginBottom: "4px" }}>
-                <span>Progresso</span>
+                <span>{currentBoss ? `❤️ HP: ${Math.round(bossHp)}/${currentBoss.hp}` : "Progresso"}</span>
                 <span>{Math.round(reelProgress)}%</span>
               </div>
               <div style={{
                 width: "100%", height: "10px", background: "rgba(0,0,0,0.5)",
                 borderRadius: "5px", overflow: "hidden",
               }}>
-                <div style={{
-                  width: `${reelProgress}%`, height: "100%",
-                  background: "linear-gradient(90deg, #4CAF50, #8BC34A)",
-                  borderRadius: "5px", transition: "width 0.1s",
-                }} />
+                {currentBoss ? (
+                  <div style={{
+                    width: `${(bossHp / currentBoss.hp) * 100}%`, height: "100%",
+                    background: bossHp / currentBoss.hp > 0.5 ? "linear-gradient(90deg, #F44336, #FF5722)" : "linear-gradient(90deg, #FF1744, #D50000)",
+                    borderRadius: "5px", transition: "width 0.1s",
+                  }} />
+                ) : (
+                  <div style={{
+                    width: `${reelProgress}%`, height: "100%",
+                    background: "linear-gradient(90deg, #4CAF50, #8BC34A)",
+                    borderRadius: "5px", transition: "width 0.1s",
+                  }} />
+                )}
               </div>
             </div>
 
@@ -415,20 +515,54 @@ export default function GameScreen({ game }) {
           const isGiant = variant && variant.id === "giant";
           const isVariant = isGolden || isGiant;
           const inventoryFull = fishInventory.length >= INVENTORY_CAP;
+          const isBossResult = catchResult.isBoss;
+          const isMigratoryResult = catchResult.isMigratory;
+
+          // Boss drop info
+          let dropItem = null;
+          if (isBossResult && catchResult.dropId) {
+            const dropArr = catchResult.dropType === "rods" ? RODS : catchResult.dropType === "baits" ? BAITS : LINES;
+            dropItem = dropArr.find(item => item.id === catchResult.dropId);
+          }
+
           return (
             <div style={{
               textAlign: "center", padding: "24px 40px", borderRadius: "16px",
-              background: isSpecial
+              background: isBossResult
+                ? "radial-gradient(ellipse at center, rgba(244,67,54,0.15) 0%, rgba(0,0,0,0.85) 70%)"
+                : isSpecial
                 ? `radial-gradient(ellipse at center, ${rarityColor}22 0%, rgba(0,0,0,0.85) 70%)`
                 : "rgba(0,0,0,0.7)",
-              border: `2px solid ${isGolden ? "#FFD700" : rarityColor}`,
+              border: `2px solid ${isBossResult ? "#F44336" : isGolden ? "#FFD700" : rarityColor}`,
               backdropFilter: "blur(10px)",
-              animation: isSpecial ? "legendaryPopIn 0.5s ease-out" : "popIn 0.3s ease-out",
-              boxShadow: isGolden ? "0 0 40px rgba(255,215,0,0.4)" : isSpecial ? `0 0 40px ${rarityColor}` : "none",
+              animation: isBossResult || isSpecial ? "legendaryPopIn 0.5s ease-out" : "popIn 0.3s ease-out",
+              boxShadow: isBossResult ? "0 0 40px rgba(244,67,54,0.4)" : isGolden ? "0 0 40px rgba(255,215,0,0.4)" : isSpecial ? `0 0 40px ${rarityColor}` : "none",
               minWidth: "300px",
             }}>
+              {/* Boss victory badge */}
+              {isBossResult && (
+                <div style={{
+                  display: "inline-block", padding: "6px 18px", borderRadius: "20px", marginBottom: "10px",
+                  background: "rgba(244,67,54,0.25)", border: "2px solid #F44336",
+                  color: "#FF6B6B", fontSize: "15px", fontWeight: 800, letterSpacing: "2px",
+                }}>
+                  ⚔️ BOSS DERROTADO!
+                </div>
+              )}
+
+              {/* Migratory badge */}
+              {isMigratoryResult && !isBossResult && (
+                <div style={{
+                  display: "inline-block", padding: "3px 12px", borderRadius: "12px", marginBottom: "8px",
+                  background: "rgba(100,180,255,0.15)", border: "1px solid rgba(100,180,255,0.4)",
+                  color: "#64b5f6", fontSize: "12px", fontWeight: 600,
+                }}>
+                  🌍 Migratório (+50% XP)
+                </div>
+              )}
+
               {/* Variant badge */}
-              {isVariant && (
+              {isVariant && !isBossResult && (
                 <div style={{
                   display: "inline-block", padding: "4px 14px", borderRadius: "20px", marginBottom: "8px",
                   background: isGolden ? "rgba(255,215,0,0.2)" : "rgba(156,39,176,0.2)",
@@ -439,7 +573,7 @@ export default function GameScreen({ game }) {
                   {variant.icon} {variant.namePt}
                 </div>
               )}
-              {isSpecial && !isVariant && (
+              {isSpecial && !isVariant && !isBossResult && (
                 <div style={{ fontSize: "14px", marginBottom: "4px" }}>
                   {rarity === "mythic" ? "⭐✨⭐" : "⭐"}
                 </div>
@@ -452,7 +586,7 @@ export default function GameScreen({ game }) {
               </div>
               <div style={{
                 fontSize: "24px", fontWeight: 800,
-                color: isGolden ? "#FFD700" : rarityColor,
+                color: isBossResult ? "#FF6B6B" : isGolden ? "#FFD700" : rarityColor,
               }}>
                 {catchResult.fish.name}
               </div>
@@ -468,14 +602,28 @@ export default function GameScreen({ game }) {
               <div style={{ fontSize: "16px", color: "#FFD700", marginTop: "6px" }}>
                 💰 +{catchResult.sellPrice} moedas
               </div>
-              {catchResult.comboMultiplier > 1 && (
+              {catchResult.comboMultiplier > 1 && !isBossResult && (
                 <div style={{ fontSize: "13px", color: "#FF9800", marginTop: "4px" }}>
                   🔥 Combo x{catchResult.comboMultiplier.toFixed(1)}
                 </div>
               )}
               <div style={{ fontSize: "14px", color: "#64b5f6", marginTop: "4px" }}>
-                ✨ +{catchResult.fish.xp} XP
+                ✨ +{catchResult.fish.xp || 500} XP
               </div>
+
+              {/* Boss drop reward */}
+              {isBossResult && dropItem && (
+                <div style={{
+                  marginTop: "12px", padding: "10px 16px", borderRadius: "10px",
+                  background: "rgba(255,215,0,0.1)", border: "1px solid rgba(255,215,0,0.3)",
+                }}>
+                  <div style={{ fontSize: "12px", color: "#8899AA", marginBottom: "4px" }}>RECOMPENSA:</div>
+                  <div style={{ fontSize: "18px" }}>
+                    {dropItem.icon} <span style={{ color: "#FFD700", fontWeight: 700 }}>{dropItem.name}</span>
+                  </div>
+                  <div style={{ fontSize: "12px", color: "#8899AA", marginTop: "2px" }}>{dropItem.description}</div>
+                </div>
+              )}
 
               {/* 3 action buttons */}
               <div style={{ display: "flex", gap: "8px", marginTop: "18px", justifyContent: "center" }}>
@@ -575,6 +723,26 @@ export default function GameScreen({ game }) {
         <div>🐟 Pescados: {totalCaught}</div>
         <div>📖 Espécies: {Object.keys(caughtFish).length}/{FISH_DATABASE.length}</div>
         <div>⚖️ Maior: {biggestFish}kg</div>
+        {/* Mission mini-widget */}
+        {dailyMissions.length > 0 && (
+          <div
+            onClick={() => setScreen("missions")}
+            style={{
+              marginTop: "8px", padding: "4px 8px", borderRadius: "6px",
+              background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.1)",
+              cursor: "pointer", display: "flex", gap: "4px", justifyContent: "flex-end",
+            }}
+          >
+            {dailyMissions.map((m, i) => (
+              <span key={i} style={{
+                fontSize: "14px",
+                opacity: (m.completed || (missionProgress[m.id] || 0) >= m.target) ? 1 : 0.4,
+              }}>
+                {(m.completed || (missionProgress[m.id] || 0) >= m.target) ? "✅" : ["🟢", "🟡", "🔴"][i]}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Achievement popup */}
@@ -733,6 +901,24 @@ export default function GameScreen({ game }) {
           0% { transform: scale(0.5) translateY(30px); opacity: 0; }
           60% { transform: scale(1.05) translateY(-5px); opacity: 1; }
           100% { transform: scale(1) translateY(0); }
+        }
+        @keyframes rainFall {
+          0% { background-position: 0 0; }
+          100% { background-position: 0 22px; }
+        }
+        @keyframes stormFlash {
+          0%, 85%, 100% { background: rgba(20,20,40,0.2); }
+          87% { background: rgba(200,200,255,0.15); }
+          89% { background: rgba(20,20,40,0.2); }
+          91% { background: rgba(200,200,255,0.1); }
+        }
+        @keyframes waitEventBounce {
+          0%, 100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-8px) scale(1.1); }
+        }
+        @keyframes waitEventTimer {
+          0% { width: 80%; }
+          100% { width: 0%; }
         }
       `}</style>
     </div>

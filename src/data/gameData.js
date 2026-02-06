@@ -76,7 +76,7 @@ export const FISH_DATABASE = [
   { id: "lambari", name: "Lambari", emoji: "🐟", rarity: "common", location: "pond", minWeight: 0.05, maxWeight: 0.3, basePrice: 3, xp: 8, difficulty: 0.8, speed: 1.5, description: "Rápido porém fraco" },
   { id: "carpa", name: "Carpa Dourada", emoji: "🐠", rarity: "uncommon", location: "pond", minWeight: 1, maxWeight: 4, basePrice: 25, xp: 30, difficulty: 2, speed: 1.3, description: "Brilha sob o sol" },
   { id: "trairão", name: "Trairão", emoji: "🐡", rarity: "rare", location: "pond", minWeight: 2, maxWeight: 6, basePrice: 60, xp: 60, difficulty: 3, speed: 1.8, description: "Predador da lagoa" },
-  { id: "pirarucu_jr", name: "Pirarucu Jovem", emoji: "🐋", rarity: "epic", location: "pond", minWeight: 5, maxWeight: 15, basePrice: 150, xp: 120, difficulty: 4, speed: 1.5, description: "Já impressiona jovem" },
+  { id: "pirarucu_jr", name: "Pirarucu Jovem", emoji: "🐋", rarity: "epic", location: "pond", minWeight: 5, maxWeight: 15, basePrice: 150, xp: 120, difficulty: 4, speed: 1.5, description: "Já impressiona jovem", nocturnal: true },
 
   // River fish
   { id: "dourado", name: "Dourado", emoji: "🐠", rarity: "uncommon", location: "river", minWeight: 2, maxWeight: 8, basePrice: 40, xp: 35, difficulty: 2.5, speed: 2, description: "O rei dos rios" },
@@ -84,13 +84,13 @@ export const FISH_DATABASE = [
   { id: "pintado", name: "Pintado", emoji: "🐡", rarity: "rare", location: "river", minWeight: 5, maxWeight: 25, basePrice: 80, xp: 70, difficulty: 3.5, speed: 1.5, description: "Gigante dos rios" },
   { id: "jaú", name: "Jaú", emoji: "🐋", rarity: "rare", location: "river", minWeight: 10, maxWeight: 50, basePrice: 120, xp: 100, difficulty: 4, speed: 1.2, description: "Monstro de rio" },
   { id: "pirarucu", name: "Pirarucu", emoji: "🐋", rarity: "epic", location: "river", minWeight: 20, maxWeight: 80, basePrice: 250, xp: 180, difficulty: 4.5, speed: 1.8, description: "O maior peixe de água doce" },
-  { id: "piranha_rei", name: "Piranha Rei", emoji: "🦈", rarity: "legendary", location: "river", minWeight: 3, maxWeight: 8, basePrice: 500, xp: 300, difficulty: 5, speed: 3, description: "Líder da matilha" },
+  { id: "piranha_rei", name: "Piranha Rei", emoji: "🦈", rarity: "legendary", location: "river", minWeight: 3, maxWeight: 8, basePrice: 500, xp: 300, difficulty: 5, speed: 3, description: "Líder da matilha", nocturnal: true },
 
   // Ocean fish
   { id: "atum", name: "Atum", emoji: "🐟", rarity: "uncommon", location: "ocean", minWeight: 10, maxWeight: 50, basePrice: 60, xp: 45, difficulty: 3, speed: 2.5, description: "Veloz como torpedo" },
   { id: "marlim", name: "Marlim Azul", emoji: "🐠", rarity: "rare", location: "ocean", minWeight: 30, maxWeight: 150, basePrice: 200, xp: 120, difficulty: 4, speed: 2.8, description: "O troféu do mar" },
   { id: "tubarao", name: "Tubarão", emoji: "🦈", rarity: "epic", location: "ocean", minWeight: 50, maxWeight: 300, basePrice: 400, xp: 200, difficulty: 5, speed: 2, description: "Predador supremo" },
-  { id: "peixe_lua", name: "Peixe-Lua", emoji: "🌙", rarity: "epic", location: "ocean", minWeight: 100, maxWeight: 500, basePrice: 350, xp: 180, difficulty: 3.5, speed: 0.8, description: "Enorme e misterioso" },
+  { id: "peixe_lua", name: "Peixe-Lua", emoji: "🌙", rarity: "epic", location: "ocean", minWeight: 100, maxWeight: 500, basePrice: 350, xp: 180, difficulty: 3.5, speed: 0.8, description: "Enorme e misterioso", nocturnal: true },
   { id: "espadarte", name: "Espadarte", emoji: "⚔️", rarity: "legendary", location: "ocean", minWeight: 40, maxWeight: 200, basePrice: 600, xp: 350, difficulty: 5.5, speed: 3.2, description: "Lâmina do oceano" },
   { id: "baleia_dourada", name: "Baleia Dourada", emoji: "🐋", rarity: "legendary", location: "ocean", minWeight: 500, maxWeight: 2000, basePrice: 1500, xp: 600, difficulty: 6, speed: 1.5, description: "Lenda dos marinheiros" },
 
@@ -98,7 +98,7 @@ export const FISH_DATABASE = [
   { id: "peixe_lanterna", name: "Peixe Lanterna", emoji: "💡", rarity: "rare", location: "abyss", minWeight: 1, maxWeight: 5, basePrice: 100, xp: 80, difficulty: 3, speed: 2, description: "Brilha na escuridão" },
   { id: "lula_gigante", name: "Lula Gigante", emoji: "🦑", rarity: "epic", location: "abyss", minWeight: 50, maxWeight: 300, basePrice: 500, xp: 250, difficulty: 5, speed: 2.5, description: "Terror das profundezas" },
   { id: "dragao_marinho", name: "Dragão Marinho", emoji: "🐉", rarity: "legendary", location: "abyss", minWeight: 100, maxWeight: 800, basePrice: 2000, xp: 800, difficulty: 6, speed: 2.5, description: "Criatura ancestral" },
-  { id: "leviata", name: "Leviatã", emoji: "👁️", rarity: "mythic", location: "abyss", minWeight: 1000, maxWeight: 5000, basePrice: 10000, xp: 3000, difficulty: 7, speed: 2.8, description: "O deus dos abismos" },
+  { id: "leviata", name: "Leviatã", emoji: "👁️", rarity: "mythic", location: "abyss", minWeight: 1000, maxWeight: 5000, basePrice: 10000, xp: 3000, difficulty: 7, speed: 2.8, description: "O deus dos abismos", nocturnal: true },
 ];
 
 export const RODS = [
@@ -114,6 +114,9 @@ export const RODS = [
   { id: "harpoon", name: "Arpão Leve", icon: "🔧", price: 900, power: 2.0, tension: 1.0, luck: 0, unlockLevel: 7, description: "Poder alto, zona pequena" },
   { id: "coral", name: "Vara de Coral", icon: "🪸", price: 1000, power: 1.2, tension: 2.0, luck: 0.08, unlockLevel: 7, description: "Zona grande, força baixa" },
   { id: "electric", name: "Vara Elétrica", icon: "⚡", price: 3000, power: 2.8, tension: 1.2, luck: 0.05, unlockLevel: 12, description: "Velocidade extrema, zona mínima" },
+  // Boss drops
+  { id: "royal_rod", name: "Vara Real", icon: "👑", price: 0, power: 2.5, tension: 1.8, luck: 0.10, description: "Presente do Rei Carpa", bossOnly: true },
+  { id: "leviathan_spine", name: "Espinha do Leviatã", icon: "🐉", price: 0, power: 3.5, tension: 1.5, luck: 0.12, description: "Arrancada do Leviatã", bossOnly: true },
 ];
 
 export const BAITS = [
@@ -128,6 +131,8 @@ export const BAITS = [
   { id: "golden_worm", name: "Minhoca Dourada", icon: "🌟", price: 12, attraction: 0.8, rarityBonus: 0.15, consumable: true, stackSize: 15, unlockLevel: 4, description: "Lenta, mais raros" },
   { id: "jellyfish", name: "Água-Viva", icon: "🪼", price: 60, attraction: 1.2, rarityBonus: 0.3, consumable: true, stackSize: 8, unlockLevel: 8, description: "Pouca atração, alta rarity" },
   { id: "deep_lure", name: "Isca Abissal", icon: "🌌", price: 200, attraction: 3.5, rarityBonus: 0.15, consumable: true, stackSize: 5, unlockLevel: 14, description: "Atração máxima, rarity moderada" },
+  // Boss drops
+  { id: "serpent_scale", name: "Escama de Serpente", icon: "🐍", price: 0, attraction: 2.0, rarityBonus: 0.25, consumable: false, description: "Escama da Serpente do Rio", bossOnly: true },
 ];
 
 export const LINES = [
@@ -141,6 +146,8 @@ export const LINES = [
   { id: "elastic", name: "Linha Elástica", icon: "🪀", price: 500, strength: 1.2, reelBonus: 1.5, unlockLevel: 6, description: "Flexível e ágil" },
   { id: "carbon_fiber", name: "Fibra de Carbono", icon: "⚡", price: 1500, strength: 1.5, reelBonus: 1.6, unlockLevel: 10, description: "Velocidade + resistência moderada" },
   { id: "mithril_thread", name: "Fio de Mithril", icon: "✨", price: 5000, strength: 1.8, reelBonus: 1.8, unlockLevel: 15, description: "Recolhimento relâmpago" },
+  // Boss drops
+  { id: "kraken_thread", name: "Fio de Kraken", icon: "🦑", price: 0, strength: 2.0, reelBonus: 2.0, description: "Tentáculo do Kraken", bossOnly: true },
 ];
 
 export const ACHIEVEMENTS = [
@@ -165,6 +172,81 @@ export const ACHIEVEMENTS = [
   { id: "giant_catch", name: "Lenda Viva", icon: "🔺", description: "Pegue um peixe gigante", check: (s) => s.giantCaught >= 1 },
   { id: "trophy_5", name: "Vitrine", icon: "🏆", description: "Tenha 5 peixes troféu", check: (s) => s.trophyCount >= 5 },
   { id: "fish_bait", name: "Isca Natural", icon: "🎣", description: "Use um peixe como isca", check: (s) => s.fishUsedAsBait >= 1 },
+  // Phase 3 achievements
+  { id: "weather_all", name: "Meteorologista", icon: "🌤️", description: "Pesque em todos os climas", check: (s) => s.weathersFished >= 4 },
+  { id: "nocturnal_catch", name: "Pescador Noturno", icon: "🌙", description: "Pegue um peixe noturno", check: (s) => s.nocturnalCaught >= 1 },
+  { id: "mission_10", name: "Missionário", icon: "📋", description: "Complete 10 missões", check: (s) => s.missionsCompleted >= 10 },
+  { id: "boss_first", name: "Caça-Chefes", icon: "⚔️", description: "Derrote um boss", check: (s) => s.bossesDefeated >= 1 },
+  { id: "boss_all", name: "Lenda dos Mares", icon: "🏅", description: "Derrote todos os bosses", check: (s) => s.bossesDefeated >= 4 },
+  { id: "wait_event", name: "Olho Vivo", icon: "👁️", description: "Colete 10 eventos de espera", check: (s) => s.waitEventsCollected >= 10 },
+  { id: "migratory_catch", name: "Globetrotter", icon: "🌍", description: "Pegue 5 peixes migratórios", check: (s) => s.migratoryCaught >= 5 },
+];
+
+// --- Phase 3: Weather, Events, Missions, Bosses ---
+
+export const WEATHER_TYPES = [
+  { id: "clear", namePt: "Limpo", icon: "☀️", rarityBonus: 0, difficultyAdd: 0 },
+  { id: "rain", namePt: "Chuva", icon: "🌧️", rarityBonus: 0.10, difficultyAdd: 0.1 },
+  { id: "storm", namePt: "Tempestade", icon: "⛈️", rarityBonus: 0.20, difficultyAdd: 0.3 },
+  { id: "night", namePt: "Noite", icon: "🌙", rarityBonus: 0.05, difficultyAdd: 0.05 },
+];
+export const WEATHER_CYCLE_MS = 180000;
+
+export const WAIT_EVENTS = [
+  { id: "trash", icon: "🗑️", namePt: "Lixo", reward: "none", rewardAmount: 0, chance: 0.40 },
+  { id: "chest", icon: "💎", namePt: "Baú", reward: "gold", rewardAmount: 25, chance: 0.25 },
+  { id: "seaweed", icon: "🌿", namePt: "Alga Mágica", reward: "bait", rewardAmount: 5, chance: 0.20 },
+  { id: "bubble", icon: "🫧", namePt: "Bolha de XP", reward: "xp", rewardAmount: 15, chance: 0.15 },
+];
+export const WAIT_EVENT_CHANCE = 0.03;
+export const WAIT_EVENT_TIMEOUT = 1500;
+
+export const MISSION_TEMPLATES = [
+  { id: "catch_any", textPt: "Pegue {n} peixes", type: "catch", scaling: [3, 8, 15] },
+  { id: "catch_rarity", textPt: "Pegue {n} peixes {rarity}", type: "catch_rarity", scaling: [2, 4, 6] },
+  { id: "earn_gold", textPt: "Ganhe {n} moedas", type: "gold", scaling: [50, 150, 400] },
+  { id: "combo", textPt: "Alcance combo x{n}", type: "combo", scaling: [3, 5, 8] },
+  { id: "weight", textPt: "Pegue um peixe de {n}+ kg", type: "weight", scaling: [5, 15, 30] },
+];
+export const MISSION_REWARDS = {
+  easy: { gold: 30, baitStacks: 0 },
+  medium: { gold: 80, baitStacks: 1 },
+  hard: { gold: 200, baitStacks: 2 },
+};
+
+export const BOSS_FISH = [
+  {
+    id: "boss_pond", name: "Rei Carpa", emoji: "👑", location: "pond",
+    hp: 100, speed: 2.0, pattern: "zigzag",
+    minWeight: 30, maxWeight: 50, basePrice: 500, rarity: "legendary",
+    description: "O majestoso rei do lago.",
+    spawnAfterCatches: 20, spawnChance: 0.08,
+    dropType: "rods", dropId: "royal_rod",
+  },
+  {
+    id: "boss_river", name: "Serpente do Rio", emoji: "🐍", location: "river",
+    hp: 150, speed: 2.5, pattern: "charge",
+    minWeight: 40, maxWeight: 70, basePrice: 800, rarity: "legendary",
+    description: "Uma serpente lendária que domina as correntezas.",
+    spawnAfterCatches: 30, spawnChance: 0.05,
+    dropType: "baits", dropId: "serpent_scale",
+  },
+  {
+    id: "boss_ocean", name: "Kraken Jovem", emoji: "🦑", location: "ocean",
+    hp: 200, speed: 3.0, pattern: "erratic",
+    minWeight: 80, maxWeight: 120, basePrice: 1200, rarity: "mythic",
+    description: "Um filhote de Kraken já é terrível.",
+    spawnAfterCatches: 40, spawnChance: 0.04,
+    dropType: "lines", dropId: "kraken_thread",
+  },
+  {
+    id: "boss_abyss", name: "Leviatã Ancestral", emoji: "🐉", location: "abyss",
+    hp: 300, speed: 3.5, pattern: "dive",
+    minWeight: 150, maxWeight: 250, basePrice: 2500, rarity: "mythic",
+    description: "A criatura mais temida das profundezas.",
+    spawnAfterCatches: 50, spawnChance: 0.02,
+    dropType: "rods", dropId: "leviathan_spine",
+  },
 ];
 
 export const xpForLevel = (level) => Math.floor(100 * Math.pow(1.4, level - 1));
