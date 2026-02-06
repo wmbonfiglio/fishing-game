@@ -228,13 +228,20 @@ export default function useGameState() {
     }
   }, [bobberExclamation]);
 
-  // Audio: tension warning sound when tension > 70
+  // Audio: tension warning sound — only a brief alert, not constant loop
+  const tensionAlertRef = useRef(false);
   useEffect(() => {
-    if (gamePhase === "reeling" && tension > 70 && !isMutedRef.current) {
-      playReel();
-      updateReelTension(tension);
-    } else {
+    if (gamePhase !== "reeling") {
       stopReel();
+      tensionAlertRef.current = false;
+      return;
+    }
+    if (tension > 80 && !tensionAlertRef.current && !isMutedRef.current) {
+      playReel();
+      tensionAlertRef.current = true;
+    }
+    if (tension <= 60) {
+      tensionAlertRef.current = false;
     }
     return () => stopReel();
   }, [tension, gamePhase]);
