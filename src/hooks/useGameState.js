@@ -11,6 +11,7 @@ import {
   playSplash, playBite, playReel, stopReel, updateReelTension,
   playCatch, playEscape, playLevelUp,
 } from "../utils/audio";
+import MECHANICS from "./mechanics/mechanicsList";
 
 function loadSave() {
   try {
@@ -120,14 +121,10 @@ export default function useGameState() {
   const [fishWeight, setFishWeight] = useState(0);
   const [bobberExclamation, setBobberExclamation] = useState(false);
 
-  // Reeling state
-  const [fishPosition, setFishPosition] = useState(50);
-  const fishPositionRef = useRef(50);
-  const [catchZonePos, setCatchZonePos] = useState(40);
-  const [tension, setTension] = useState(0);
-  const [reelProgress, setReelProgress] = useState(0);
-  const [fishDir, setFishDir] = useState(1);
-  const fishDirRef = useRef(1);
+  // Reeling state — mechanic selection
+  const [selectedMechanicId, setSelectedMechanicId] = useState(
+    () => localStorage.getItem("fishingMechanic") || "tracking"
+  );
   const [catchResult, setCatchResult] = useState(null);
 
   // Message
@@ -135,6 +132,25 @@ export default function useGameState() {
 
   const keysRef = useRef({});
   const caughtAtRef = useRef(0);
+
+  // Fishing mechanic hooks — all must be called unconditionally (rules of hooks)
+  const selectedMechanic = MECHANICS.find(m => m.id === selectedMechanicId) || MECHANICS[0];
+  const mechanicArgs = { currentFish, keysRef, equippedRod, equippedLine, currentWeather, currentBossRef, bossHpRef, setBossHp };
+  const allMechanics = {};
+  for (const m of MECHANICS) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    allMechanics[m.id] = m.useHook({
+      ...mechanicArgs,
+      gamePhase: m.id === selectedMechanicId ? gamePhase : "idle",
+    });
+  }
+  const mechanic = allMechanics[selectedMechanicId];
+  const { fishPosition, catchZonePos, catchZoneSize, tension, reelProgress } = mechanic;
+
+  // Persist mechanic selection
+  useEffect(() => {
+    localStorage.setItem("fishingMechanic", selectedMechanicId);
+  }, [selectedMechanicId]);
 
   // Auto-save
   useEffect(() => {
@@ -470,15 +486,9 @@ export default function useGameState() {
     setCurrentFish(fish);
     setFishWeight(weight);
     setCurrentVariant(variant);
-    setGamePhase("reeling");
-    setFishPosition(50);
-    fishPositionRef.current = 50;
-    setCatchZonePos(50);
-    setTension(0);
-    setReelProgress(0);
     const initialDir = Math.random() > 0.5 ? 1 : -1;
-    setFishDir(initialDir);
-    fishDirRef.current = initialDir;
+    mechanic.initReeling(initialDir);
+    setGamePhase("reeling");
 
     if (fish.isBoss) {
       setCurrentBoss(fish);
@@ -575,24 +585,23 @@ export default function useGameState() {
       setWaitEvent(null);
       return;
     }
+    // Roll wait event once per cast
+    if (Math.random() < WAIT_EVENT_CHANCE) {
+      const roll = Math.random();
+      let cum = 0;
+      for (const evt of WAIT_EVENTS) {
+        cum += evt.chance;
+        if (roll <= cum) {
+          setWaitEvent({ event: evt, expiresAt: Date.now() + WAIT_EVENT_TIMEOUT });
+          break;
+        }
+      }
+    }
     const interval = setInterval(() => {
-      // Wait event roll
+      // Expire wait event if timed out
       setWaitEvent(prev => {
-        if (prev) {
-          if (Date.now() > prev.expiresAt) return null;
-          return prev;
-        }
-        if (Math.random() < WAIT_EVENT_CHANCE) {
-          const roll = Math.random();
-          let cum = 0;
-          for (const evt of WAIT_EVENTS) {
-            cum += evt.chance;
-            if (roll <= cum) {
-              return { event: evt, expiresAt: Date.now() + WAIT_EVENT_TIMEOUT };
-            }
-          }
-        }
-        return null;
+        if (prev && Date.now() > prev.expiresAt) return null;
+        return prev;
       });
 
       setWaitTimer(prev => {
@@ -617,139 +626,7 @@ export default function useGameState() {
     return () => clearInterval(interval);
   }, [gamePhase]);
 
-  // Reeling game loop
-  useEffect(() => {
-    if (gamePhase !== "reeling" || !currentFish) return;
-
-    const rod = RODS[equippedRod];
-    const line = LINES[equippedLine];
-    const isBoss = !!currentBossRef.current;
-    const bossData = currentBossRef.current;
-    const difficulty = currentFish.difficulty + (currentWeather.difficultyAdd || 0);
-    const speed = currentFish.speed * (isBoss ? 1.3 : 1);
-    const catchZoneSizeLocal = 15 + rod.tension * 3;
-    const reelBonus = line.reelBonus ?? 1.0;
-    let changeTimer = 0;
-    let patternTimer = 0;
-    let patternPhase = 0;
-
-    const interval = setInterval(() => {
-      changeTimer -= 1;
-
-      // Boss movement patterns
-      if (isBoss && bossData) {
-        patternTimer += 1;
-        const pattern = bossData.pattern;
-
-        if (pattern === "zigzag") {
-          // Fast oscillation with increasing amplitude
-          if (changeTimer <= 0) {
-            fishDirRef.current = -fishDirRef.current;
-            setFishDir(fishDirRef.current);
-            changeTimer = 8 + Math.random() * 12;
-          }
-        } else if (pattern === "charge") {
-          // Rush then pause
-          if (changeTimer <= 0) {
-            patternPhase = (patternPhase + 1) % 3;
-            if (patternPhase === 0) {
-              fishDirRef.current = Math.random() > 0.5 ? 1 : -1;
-              setFishDir(fishDirRef.current);
-              changeTimer = 30 + Math.random() * 20;
-            } else {
-              changeTimer = 15;
-            }
-          }
-        } else if (pattern === "erratic") {
-          if (changeTimer <= 0) {
-            fishDirRef.current = Math.random() > 0.5 ? 1 : -1;
-            setFishDir(fishDirRef.current);
-            changeTimer = 5 + Math.random() * 15;
-          }
-        } else if (pattern === "dive") {
-          if (changeTimer <= 0) {
-            patternPhase = (patternPhase + 1) % 2;
-            fishDirRef.current = patternPhase === 0 ? 1 : -1;
-            setFishDir(fishDirRef.current);
-            changeTimer = patternPhase === 0 ? 40 : 25;
-          }
-        }
-      } else {
-        if (changeTimer <= 0) {
-          const newDir = Math.random() > 0.5 ? 1 : -1;
-          fishDirRef.current = newDir;
-          setFishDir(newDir);
-          changeTimer = Math.random() * 60 + 20;
-        }
-      }
-
-      setFishPosition(prev => {
-        const dir = fishDirRef.current;
-        const movement = dir * speed * difficulty * 0.4 * (0.5 + Math.random());
-        const jitter = (Math.random() - 0.5) * difficulty * 0.5;
-        let next = prev + movement + jitter;
-        if (next < 5) { next = 5; fishDirRef.current = 1; setFishDir(1); }
-        if (next > 95) { next = 95; fishDirRef.current = -1; setFishDir(-1); }
-        fishPositionRef.current = next;
-        return next;
-      });
-
-      setCatchZonePos(prev => {
-        const fp = fishPositionRef.current;
-        if (keysRef.current.space) {
-          const moveSpeed = 1.5 * rod.power;
-          const diff = fp - prev;
-          return prev + Math.sign(diff) * Math.min(Math.abs(diff), moveSpeed);
-        }
-        return prev + (Math.random() - 0.5) * 0.5;
-      });
-
-      setCatchZonePos(currentCatchZone => {
-        const fp = fishPositionRef.current;
-        const inZone = Math.abs(fp - currentCatchZone) < catchZoneSizeLocal / 2;
-        const tensionMult = isBoss ? 1.3 : 1;
-
-        setTension(prev => {
-          let newTension = prev;
-          if (keysRef.current.space && !inZone) {
-            newTension += 0.8 * difficulty * tensionMult / line.strength;
-          } else if (inZone && keysRef.current.space) {
-            newTension -= 0.3 * line.strength;
-          } else {
-            newTension -= 0.5;
-          }
-          return Math.max(0, Math.min(100, newTension));
-        });
-
-        if (isBoss) {
-          // Boss: reduce HP instead of increasing reel progress
-          if (inZone) {
-            bossHpRef.current = Math.max(0, bossHpRef.current - 0.5 * rod.power * reelBonus);
-            setBossHp(bossHpRef.current);
-            const bossMaxHp = bossData ? bossData.hp : 100;
-            setReelProgress(((bossMaxHp - bossHpRef.current) / bossMaxHp) * 100);
-          } else {
-            // Boss recovers a tiny bit
-            const bossMaxHp = bossData ? bossData.hp : 100;
-            bossHpRef.current = Math.min(bossMaxHp, bossHpRef.current + 0.05 * difficulty);
-            setBossHp(bossHpRef.current);
-            setReelProgress(((bossMaxHp - bossHpRef.current) / bossMaxHp) * 100);
-          }
-        } else {
-          setReelProgress(prev => {
-            if (inZone) {
-              return Math.min(100, prev + 0.3 * rod.power * reelBonus);
-            }
-            return Math.max(0, prev - 0.15 * difficulty);
-          });
-        }
-
-        return currentCatchZone;
-      });
-    }, 33);
-
-    return () => clearInterval(interval);
-  }, [gamePhase, currentFish, equippedRod, equippedLine, currentWeather]);
+  // Reeling game loop — delegated to mechanic hook (see useFishingMechanic above)
 
   // Mission progress tracking
   const updateMissionProgress = useCallback((type, value) => {
@@ -1040,7 +917,6 @@ export default function useGameState() {
   const bait = BAITS[equippedBait];
   const line = LINES[equippedLine];
   const loc = LOCATIONS[currentLocation];
-  const catchZoneSize = 15 + rod.tension * 3;
   const xpNeeded = xpForLevel(level);
   const xpPercent = (xp / xpNeeded) * 100;
 
@@ -1066,6 +942,8 @@ export default function useGameState() {
     fishPosition, catchZonePos, catchZoneSize,
     tension, reelProgress,
     catchResult,
+    // Mechanic
+    mechanic, selectedMechanic, selectedMechanicId, setSelectedMechanicId,
     // Stats
     totalCaught, totalGoldEarned, biggestFish, caughtFish,
     unlockedAchievements, achievementPopup,
