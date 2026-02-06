@@ -1,5 +1,5 @@
 export default function TitleScreen({ game }) {
-  const { setScreen } = game;
+  const { setScreen, hasSaveData } = game;
 
   return (
     <div style={{
@@ -32,7 +32,26 @@ export default function TitleScreen({ game }) {
       </p>
 
       <div style={{ marginTop: "50px", display: "flex", flexDirection: "column", gap: "12px" }}>
-        <button onClick={() => setScreen("game")} style={{
+        {hasSaveData && (
+          <button onClick={() => setScreen("game")} style={{
+            padding: "14px 60px", fontSize: "18px", fontWeight: 700, border: "2px solid #4CAF50",
+            background: "rgba(76,175,80,0.15)", color: "#66BB6A", borderRadius: "8px",
+            cursor: "pointer", letterSpacing: "2px", transition: "all 0.2s",
+          }}
+            onMouseOver={e => { e.target.style.background = "rgba(76,175,80,0.3)"; e.target.style.transform = "scale(1.05)"; }}
+            onMouseOut={e => { e.target.style.background = "rgba(76,175,80,0.15)"; e.target.style.transform = "scale(1)"; }}
+          >
+            CONTINUAR
+          </button>
+        )}
+        <button onClick={() => {
+          if (hasSaveData) {
+            localStorage.removeItem("pesca-rpg-save");
+            window.location.reload();
+          } else {
+            setScreen("game");
+          }
+        }} style={{
           padding: "14px 60px", fontSize: "18px", fontWeight: 700, border: "2px solid #42a5f5",
           background: "rgba(66,165,245,0.15)", color: "#64b5f6", borderRadius: "8px",
           cursor: "pointer", letterSpacing: "2px", transition: "all 0.2s",
@@ -40,7 +59,7 @@ export default function TitleScreen({ game }) {
           onMouseOver={e => { e.target.style.background = "rgba(66,165,245,0.3)"; e.target.style.transform = "scale(1.05)"; }}
           onMouseOut={e => { e.target.style.background = "rgba(66,165,245,0.15)"; e.target.style.transform = "scale(1)"; }}
         >
-          PESCAR
+          {hasSaveData ? "NOVO JOGO" : "PESCAR"}
         </button>
       </div>
 

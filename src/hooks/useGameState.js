@@ -1,30 +1,67 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   LOCATIONS, FISH_DATABASE, RODS, BAITS, LINES, ACHIEVEMENTS,
-  RARITY_NAMES, xpForLevel,
+  RARITY_NAMES, xpForLevel, SAVE_KEY,
 } from "../data/gameData";
+import {
+  playSplash, playBite, playReel, stopReel, updateReelTension,
+  playCatch, playEscape, playLevelUp,
+} from "../utils/audio";
+
+function loadSave() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+const calculateUnlocks = (oldLevel, newLevel) => {
+  const unlocks = [];
+  for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
+    RODS.forEach(r => r.unlockLevel === lv && unlocks.push(r));
+    BAITS.forEach(b => b.unlockLevel === lv && unlocks.push(b));
+    LINES.forEach(l => l.unlockLevel === lv && unlocks.push(l));
+    LOCATIONS.forEach(loc => loc.unlockLevel === lv && unlocks.push(loc));
+  }
+  return unlocks;
+};
 
 export default function useGameState() {
+  const [saved] = useState(() => loadSave());
+
   // Game state
   const [screen, setScreen] = useState("title");
   const [gamePhase, setGamePhase] = useState("idle");
-  const [gold, setGold] = useState(50);
-  const [xp, setXp] = useState(0);
-  const [level, setLevel] = useState(1);
-  const [currentLocation, setCurrentLocation] = useState(0);
-  const [equippedRod, setEquippedRod] = useState(0);
-  const [equippedBait, setEquippedBait] = useState(0);
-  const [equippedLine, setEquippedLine] = useState(0);
-  const [ownedRods, setOwnedRods] = useState([0]);
-  const [ownedBaits, setOwnedBaits] = useState([0]);
-  const [ownedLines, setOwnedLines] = useState([0]);
-  const [caughtFish, setCaughtFish] = useState({});
-  const [totalCaught, setTotalCaught] = useState(0);
-  const [totalGoldEarned, setTotalGoldEarned] = useState(0);
-  const [biggestFish, setBiggestFish] = useState(0);
-  const [unlockedAchievements, setUnlockedAchievements] = useState([]);
+  const [gold, setGold] = useState(saved?.gold ?? 50);
+  const [xp, setXp] = useState(saved?.xp ?? 0);
+  const [level, setLevel] = useState(saved?.level ?? 1);
+  const [currentLocation, setCurrentLocation] = useState(saved?.currentLocation ?? 0);
+  const [equippedRod, setEquippedRod] = useState(saved?.equippedRod ?? 0);
+  const [equippedBait, setEquippedBait] = useState(saved?.equippedBait ?? 0);
+  const [equippedLine, setEquippedLine] = useState(saved?.equippedLine ?? 0);
+  const [ownedRods, setOwnedRods] = useState(saved?.ownedRods ?? [0]);
+  const [ownedBaits, setOwnedBaits] = useState(saved?.ownedBaits ?? [0]);
+  const [ownedLines, setOwnedLines] = useState(saved?.ownedLines ?? [0]);
+  const [caughtFish, setCaughtFish] = useState(saved?.caughtFish ?? {});
+  const [totalCaught, setTotalCaught] = useState(saved?.totalCaught ?? 0);
+  const [totalGoldEarned, setTotalGoldEarned] = useState(saved?.totalGoldEarned ?? 0);
+  const [biggestFish, setBiggestFish] = useState(saved?.biggestFish ?? 0);
+  const [unlockedAchievements, setUnlockedAchievements] = useState(saved?.unlockedAchievements ?? []);
+  const [tutorialComplete, setTutorialComplete] = useState(saved?.tutorialComplete ?? false);
   const [achievementPopup, setAchievementPopup] = useState(null);
   const [shopTab, setShopTab] = useState("rods");
+
+  // Audio & Level Up
+  const [isMuted, setIsMuted] = useState(saved?.isMuted ?? false);
+  const [levelUpData, setLevelUpData] = useState(null);
+  const isMutedRef = useRef(isMuted);
+  useEffect(() => { isMutedRef.current = isMuted; }, [isMuted]);
+
+  // Tutorial state: 0 = off, 1-5 = active steps
+  const [tutorialStep, setTutorialStep] = useState(saved?.tutorialComplete ? 0 : 1);
 
   // Casting state
   const [castPower, setCastPower] = useState(0);
@@ -51,6 +88,80 @@ export default function useGameState() {
   const [message, setMessage] = useState("");
 
   const keysRef = useRef({});
+  const caughtAtRef = useRef(0);
+
+  // Auto-save
+  useEffect(() => {
+    const data = {
+      gold, xp, level, currentLocation,
+      equippedRod, equippedBait, equippedLine,
+      ownedRods, ownedBaits, ownedLines,
+      caughtFish, totalCaught, totalGoldEarned,
+      biggestFish, unlockedAchievements, tutorialComplete,
+      isMuted,
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+  }, [
+    gold, xp, level, currentLocation,
+    equippedRod, equippedBait, equippedLine,
+    ownedRods, ownedBaits, ownedLines,
+    caughtFish, totalCaught, totalGoldEarned,
+    biggestFish, unlockedAchievements, tutorialComplete,
+    isMuted,
+  ]);
+
+  // Tutorial progression: advance step when gamePhase changes
+  useEffect(() => {
+    if (tutorialStep === 0) return;
+
+    if (gamePhase === "idle" && tutorialStep >= 2) {
+      setTutorialStep(1);
+    } else if (gamePhase === "casting" && tutorialStep === 1) {
+      setTutorialStep(2);
+    } else if (gamePhase === "waiting" && tutorialStep === 2) {
+      setTutorialStep(3);
+    }
+  }, [gamePhase, tutorialStep]);
+
+  // Tutorial step 3→4 when bobber exclamation appears
+  useEffect(() => {
+    if (tutorialStep === 3 && bobberExclamation) {
+      setTutorialStep(4);
+    }
+  }, [bobberExclamation, tutorialStep]);
+
+  // Tutorial step 4→5 when reeling starts
+  useEffect(() => {
+    if (tutorialStep === 4 && gamePhase === "reeling") {
+      setTutorialStep(5);
+    }
+  }, [gamePhase, tutorialStep]);
+
+  // Tutorial complete when fish is caught during tutorial
+  useEffect(() => {
+    if (tutorialStep === 5 && gamePhase === "caught") {
+      setTutorialStep(0);
+      setTutorialComplete(true);
+    }
+  }, [gamePhase, tutorialStep]);
+
+  // Audio: bite sound when bobber exclamation
+  useEffect(() => {
+    if (bobberExclamation && !isMutedRef.current) {
+      playBite();
+    }
+  }, [bobberExclamation]);
+
+  // Audio: tension warning sound when tension > 70
+  useEffect(() => {
+    if (gamePhase === "reeling" && tension > 70 && !isMutedRef.current) {
+      playReel();
+      updateReelTension(tension);
+    } else {
+      stopReel();
+    }
+    return () => stopReel();
+  }, [tension, gamePhase]);
 
   // Stats for achievements
   const getStats = useCallback(() => {
@@ -95,7 +206,10 @@ export default function useGameState() {
       }
       if (newLevel > level) {
         setLevel(newLevel);
-        setMessage(`🎉 NÍVEL ${newLevel}! Novas possibilidades desbloqueadas!`);
+        setMessage(`NIVEL ${newLevel}! Novas possibilidades desbloqueadas!`);
+        const unlocks = calculateUnlocks(level, newLevel);
+        setLevelUpData({ level: newLevel, unlocks });
+        if (!isMutedRef.current) playLevelUp();
       }
       return newXp;
     });
@@ -132,7 +246,7 @@ export default function useGameState() {
     setGamePhase("casting");
     setCastPower(0);
     setCastDirection(1);
-    setMessage("Segure ESPAÇO para lançar...");
+    setMessage("Segure ESPACO para lancar...");
   };
 
   // Release cast
@@ -144,7 +258,8 @@ export default function useGameState() {
     const waitTime = Math.max(1, 5 - bait.attraction * 0.5 - power * 0.02 + Math.random() * 3);
     setWaitTimer(waitTime);
     setBobberExclamation(false);
-    setMessage("Esperando o peixe morder... 🎣");
+    setMessage("Esperando o peixe morder...");
+    if (!isMutedRef.current) playSplash();
   };
 
   // Hook fish
@@ -177,6 +292,8 @@ export default function useGameState() {
             startCasting();
           } else if (gamePhase === "waiting" && bobberExclamation) {
             hookFish();
+          } else if (gamePhase === "caught" && Date.now() - caughtAtRef.current > 800) {
+            resetFishing();
           }
         }
       }
@@ -225,7 +342,7 @@ export default function useGameState() {
       setWaitTimer(prev => {
         if (prev <= 0) {
           setBobberExclamation(true);
-          setMessage("❗ PEIXE! Aperte ESPAÇO agora!");
+          setMessage("PEIXE! Aperte ESPACO agora!");
           setTimeout(() => {
             setGamePhase(prev2 => {
               if (prev2 === "waiting") {
@@ -322,12 +439,14 @@ export default function useGameState() {
     if (tension >= 100) {
       setGamePhase("escaped");
       setCatchResult(null);
-      setMessage(`💔 A linha arrebentou! ${currentFish?.name} escapou...`);
+      setMessage(`A linha arrebentou! ${currentFish?.name} escapou...`);
+      if (!isMutedRef.current) playEscape();
       setTimeout(() => setGamePhase("idle"), 2500);
     }
 
     if (reelProgress >= 100) {
       setGamePhase("caught");
+      caughtAtRef.current = Date.now();
       const fish = currentFish;
       const weight = fishWeight;
       const priceMultiplier = 1 + (weight - fish.minWeight) / (fish.maxWeight - fish.minWeight);
@@ -339,6 +458,7 @@ export default function useGameState() {
       setTotalCaught(prev => prev + 1);
       if (weight > biggestFish) setBiggestFish(weight);
       addXp(fish.xp);
+      if (!isMutedRef.current) playCatch(fish.rarity);
 
       setCaughtFish(prev => {
         const existing = prev[fish.id] || { count: 0, biggest: 0, smallest: Infinity };
@@ -418,8 +538,15 @@ export default function useGameState() {
     totalCaught, totalGoldEarned, biggestFish, caughtFish,
     unlockedAchievements, achievementPopup,
     // Actions
-    startCasting, releaseCast, resetFishing, buyItem,
+    startCasting, releaseCast, resetFishing, buyItem, hookFish,
+    // Save
+    hasSaveData: saved !== null,
+    // Tutorial
+    tutorialStep,
     // Refs
     keysRef,
+    // Audio & Level Up
+    isMuted, setIsMuted,
+    levelUpData, setLevelUpData,
   };
 }

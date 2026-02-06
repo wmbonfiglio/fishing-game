@@ -83,8 +83,8 @@ export const FISH_DATABASE = [
   // Abyss fish
   { id: "peixe_lanterna", name: "Peixe Lanterna", emoji: "💡", rarity: "rare", location: "abyss", minWeight: 1, maxWeight: 5, basePrice: 100, xp: 80, difficulty: 3, speed: 2, description: "Brilha na escuridão" },
   { id: "lula_gigante", name: "Lula Gigante", emoji: "🦑", rarity: "epic", location: "abyss", minWeight: 50, maxWeight: 300, basePrice: 500, xp: 250, difficulty: 5, speed: 2.5, description: "Terror das profundezas" },
-  { id: "dragao_marinho", name: "Dragão Marinho", emoji: "🐉", rarity: "legendary", location: "abyss", minWeight: 100, maxWeight: 800, basePrice: 2000, xp: 800, difficulty: 6, speed: 3, description: "Criatura ancestral" },
-  { id: "leviata", name: "Leviatã", emoji: "👁️", rarity: "mythic", location: "abyss", minWeight: 1000, maxWeight: 5000, basePrice: 10000, xp: 3000, difficulty: 8, speed: 3.5, description: "O deus dos abismos" },
+  { id: "dragao_marinho", name: "Dragão Marinho", emoji: "🐉", rarity: "legendary", location: "abyss", minWeight: 100, maxWeight: 800, basePrice: 2000, xp: 800, difficulty: 6, speed: 2.5, description: "Criatura ancestral" },
+  { id: "leviata", name: "Leviatã", emoji: "👁️", rarity: "mythic", location: "abyss", minWeight: 1000, maxWeight: 5000, basePrice: 10000, xp: 3000, difficulty: 7, speed: 2.8, description: "O deus dos abismos" },
 ];
 
 export const RODS = [
@@ -132,3 +132,13 @@ export const ACHIEVEMENTS = [
 ];
 
 export const xpForLevel = (level) => Math.floor(100 * Math.pow(1.4, level - 1));
+
+export const SAVE_KEY = "pesca-rpg-save";
+
+export const TUTORIAL_STEPS = {
+  1: "Pressione o botão para lançar a linha!",
+  2: "Segure e solte para definir a força!",
+  3: "Aguarde o peixe morder...",
+  4: "AGORA! Pressione para fisgar!",
+  5: "Mantenha o peixe na zona verde! Cuidado com a tensão!",
+};

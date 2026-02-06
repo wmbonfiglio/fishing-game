@@ -1,4 +1,7 @@
-import { LOCATIONS, FISH_DATABASE, RARITY_COLORS, RARITY_NAMES } from "../data/gameData";
+import { useState, useEffect, useCallback } from "react";
+import { LOCATIONS, FISH_DATABASE, RARITY_COLORS, RARITY_NAMES, TUTORIAL_STEPS } from "../data/gameData";
+
+let particleId = 0;
 
 export default function GameScreen({ game }) {
   const {
@@ -10,14 +13,60 @@ export default function GameScreen({ game }) {
     tension, reelProgress, catchResult,
     totalCaught, biggestFish, caughtFish,
     achievementPopup,
-    setScreen, startCasting, releaseCast, resetFishing, keysRef,
+    setScreen, startCasting, releaseCast, resetFishing, hookFish, keysRef,
+    tutorialStep,
+    isMuted, setIsMuted,
+    levelUpData, setLevelUpData,
   } = game;
+
+  // Screen shake
+  const [screenShake, setScreenShake] = useState(false);
+  useEffect(() => {
+    setScreenShake(game.tension > 80 && game.gamePhase === "reeling");
+  }, [game.tension, game.gamePhase]);
+
+  // Particles
+  const [particles, setParticles] = useState([]);
+
+  const spawnParticles = useCallback((type, count, color) => {
+    const newParticles = [];
+    for (let i = 0; i < count; i++) {
+      newParticles.push({
+        id: ++particleId,
+        type,
+        color,
+        dx: (Math.random() - 0.5) * 80,
+        dy: -(Math.random() * 60 + 20),
+        delay: Math.random() * 0.15,
+      });
+    }
+    setParticles(prev => [...prev, ...newParticles]);
+    const duration = type === "splash" ? 800 : 1000;
+    setTimeout(() => {
+      setParticles(prev => prev.filter(p => !newParticles.includes(p)));
+    }, duration);
+  }, []);
+
+  // Splash particles when cast lands
+  const [prevPhase, setPrevPhase] = useState(gamePhase);
+  useEffect(() => {
+    if (prevPhase !== "waiting" && gamePhase === "waiting") {
+      spawnParticles("splash", 8, "#64b5f6");
+    }
+    if (prevPhase !== "caught" && gamePhase === "caught" && catchResult) {
+      const rarity = catchResult.fish.rarity;
+      const color = RARITY_COLORS[rarity];
+      spawnParticles("glow", rarity === "legendary" || rarity === "mythic" ? 12 : 6, color);
+    }
+    setPrevPhase(gamePhase);
+  }, [gamePhase, catchResult, prevPhase, spawnParticles]);
 
   return (
     <div style={{
       width: "100%", height: "100vh", fontFamily: "'Segoe UI', sans-serif",
       background: loc.bgGradient, color: "#e0e0e0", position: "relative", overflow: "hidden",
       userSelect: "none",
+      animation: screenShake ? "screenShake 0.1s infinite" : "none",
     }}>
       {/* Water effect */}
       <div style={{ position: "absolute", top: "55%", left: 0, right: 0, bottom: 0, overflow: "hidden" }}>
@@ -58,10 +107,23 @@ export default function GameScreen({ game }) {
           {loc.icon} {loc.name}
         </div>
 
-        <div style={{ display: "flex", gap: "8px", fontSize: "12px", color: "#6B8FA8" }}>
-          <span>{rod.icon} {rod.name}</span>
-          <span>•</span>
-          <span>{bait.icon} {bait.name}</span>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <div style={{ fontSize: "12px", color: "#6B8FA8", display: "flex", gap: "8px" }}>
+            <span>{rod.icon} {rod.name}</span>
+            <span>•</span>
+            <span>{bait.icon} {bait.name}</span>
+          </div>
+          {/* Mute toggle */}
+          <button
+            onClick={() => setIsMuted(m => !m)}
+            style={{
+              background: "none", border: "1px solid rgba(255,255,255,0.15)",
+              borderRadius: "6px", padding: "4px 8px", cursor: "pointer",
+              fontSize: "16px", lineHeight: 1, color: "#8BB4D6",
+            }}
+          >
+            {isMuted ? "\uD83D\uDD07" : "\uD83D\uDD0A"}
+          </button>
         </div>
       </div>
 
@@ -116,13 +178,32 @@ export default function GameScreen({ game }) {
         {(gamePhase === "waiting" || gamePhase === "idle") && (
           <div style={{ textAlign: "center" }}>
             {gamePhase === "waiting" && (
-              <div style={{
-                fontSize: bobberExclamation ? "64px" : "48px",
-                animation: bobberExclamation ? "shake 0.1s infinite" : "bob 2s ease-in-out infinite",
-                transition: "font-size 0.2s",
-              }}>
-                {bobberExclamation ? "❗" : "🎣"}
-              </div>
+              <>
+                <div style={{
+                  fontSize: bobberExclamation ? "64px" : "48px",
+                  animation: bobberExclamation ? "shake 0.1s infinite" : "bob 2s ease-in-out infinite",
+                  transition: "font-size 0.2s",
+                }}>
+                  {bobberExclamation ? "❗" : "🎣"}
+                </div>
+
+                {/* FISGAR button - mobile hook */}
+                {bobberExclamation && (
+                  <button
+                    onClick={hookFish}
+                    onTouchStart={(e) => { e.preventDefault(); hookFish(); }}
+                    style={{
+                      marginTop: "12px", padding: "14px 40px", fontSize: "18px", fontWeight: 800,
+                      borderRadius: "12px", cursor: "pointer", letterSpacing: "2px",
+                      background: "rgba(244,67,54,0.3)", border: "2px solid #F44336",
+                      color: "#FF6B6B",
+                      animation: "hookPulse 0.5s ease-in-out infinite",
+                    }}
+                  >
+                    FISGAR!
+                  </button>
+                )}
+              </>
             )}
 
             {gamePhase === "idle" && (
@@ -215,6 +296,17 @@ export default function GameScreen({ game }) {
               </div>
             </div>
 
+            {/* Fish shadow underwater */}
+            <div style={{
+              fontSize: "32px", opacity: 0.4,
+              filter: "blur(4px) brightness(0.5)",
+              transform: `translateX(${(fishPosition - 50) * 2}px)`,
+              transition: "transform 0.1s",
+              pointerEvents: "none",
+            }}>
+              {currentFish.emoji}
+            </div>
+
             {/* Progress bar */}
             <div style={{ width: "300px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#6B8FA8", marginBottom: "4px" }}>
@@ -273,44 +365,58 @@ export default function GameScreen({ game }) {
         )}
 
         {/* Caught result */}
-        {gamePhase === "caught" && catchResult && (
-          <div style={{
-            textAlign: "center", padding: "24px 40px", borderRadius: "16px",
-            background: "rgba(0,0,0,0.7)", border: `2px solid ${RARITY_COLORS[catchResult.fish.rarity]}`,
-            backdropFilter: "blur(10px)",
-            animation: "popIn 0.3s ease-out",
-          }}>
-            <div style={{ fontSize: "48px", marginBottom: "8px" }}>{catchResult.fish.emoji}</div>
+        {gamePhase === "caught" && catchResult && (() => {
+          const rarity = catchResult.fish.rarity;
+          const isSpecial = rarity === "legendary" || rarity === "mythic";
+          const rarityColor = RARITY_COLORS[rarity];
+          return (
             <div style={{
-              fontSize: "24px", fontWeight: 800,
-              color: RARITY_COLORS[catchResult.fish.rarity],
+              textAlign: "center", padding: "24px 40px", borderRadius: "16px",
+              background: isSpecial
+                ? `radial-gradient(ellipse at center, ${rarityColor}22 0%, rgba(0,0,0,0.85) 70%)`
+                : "rgba(0,0,0,0.7)",
+              border: `2px solid ${rarityColor}`,
+              backdropFilter: "blur(10px)",
+              animation: isSpecial ? "legendaryPopIn 0.5s ease-out" : "popIn 0.3s ease-out",
+              boxShadow: isSpecial ? `0 0 40px ${rarityColor}` : "none",
             }}>
-              {catchResult.fish.name}
+              {isSpecial && (
+                <div style={{ fontSize: "14px", marginBottom: "4px" }}>
+                  {rarity === "mythic" ? "⭐✨⭐" : "⭐"}
+                </div>
+              )}
+              <div style={{ fontSize: "48px", marginBottom: "8px" }}>{catchResult.fish.emoji}</div>
+              <div style={{
+                fontSize: "24px", fontWeight: 800,
+                color: rarityColor,
+              }}>
+                {catchResult.fish.name}
+              </div>
+              <div style={{
+                fontSize: "12px", textTransform: "uppercase", letterSpacing: "2px",
+                color: rarityColor, marginTop: "4px",
+              }}>
+                {RARITY_NAMES[rarity]}
+              </div>
+              <div style={{ fontSize: "18px", color: "#e0e0e0", marginTop: "12px" }}>
+                ⚖️ {catchResult.weight}kg
+              </div>
+              <div style={{ fontSize: "16px", color: "#FFD700", marginTop: "6px" }}>
+                💰 +{catchResult.sellPrice} moedas
+              </div>
+              <div style={{ fontSize: "14px", color: "#64b5f6", marginTop: "4px" }}>
+                ✨ +{catchResult.fish.xp} XP
+              </div>
+              <button onClick={resetFishing} style={{
+                marginTop: "18px", padding: "10px 32px", fontSize: "15px", fontWeight: 600,
+                borderRadius: "8px", cursor: "pointer",
+                background: "rgba(66,165,245,0.2)", border: "1px solid #42a5f5", color: "#64b5f6",
+              }}>
+                Pescar Novamente
+              </button>
             </div>
-            <div style={{
-              fontSize: "12px", textTransform: "uppercase", letterSpacing: "2px",
-              color: RARITY_COLORS[catchResult.fish.rarity], marginTop: "4px",
-            }}>
-              {RARITY_NAMES[catchResult.fish.rarity]}
-            </div>
-            <div style={{ fontSize: "18px", color: "#e0e0e0", marginTop: "12px" }}>
-              ⚖️ {catchResult.weight}kg
-            </div>
-            <div style={{ fontSize: "16px", color: "#FFD700", marginTop: "6px" }}>
-              💰 +{catchResult.sellPrice} moedas
-            </div>
-            <div style={{ fontSize: "14px", color: "#64b5f6", marginTop: "4px" }}>
-              ✨ +{catchResult.fish.xp} XP
-            </div>
-            <button onClick={resetFishing} style={{
-              marginTop: "18px", padding: "10px 32px", fontSize: "15px", fontWeight: 600,
-              borderRadius: "8px", cursor: "pointer",
-              background: "rgba(66,165,245,0.2)", border: "1px solid #42a5f5", color: "#64b5f6",
-            }}>
-              Pescar Novamente
-            </button>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Escaped message */}
         {gamePhase === "escaped" && (
@@ -326,6 +432,30 @@ export default function GameScreen({ game }) {
           </div>
         )}
       </div>
+
+      {/* Particles */}
+      {particles.length > 0 && (
+        <div style={{
+          position: "absolute", top: "50%", left: "50%",
+          transform: "translate(-50%, -50%)", pointerEvents: "none", zIndex: 15,
+        }}>
+          {particles.map(p => (
+            <div key={p.id} style={{
+              position: "absolute",
+              width: p.type === "splash" ? "6px" : "8px",
+              height: p.type === "splash" ? "6px" : "8px",
+              borderRadius: "50%",
+              background: p.color,
+              boxShadow: `0 0 6px ${p.color}`,
+              animation: `${p.type === "splash" ? "particleSplash" : "catchGlow"} ${p.type === "splash" ? "0.8s" : "1s"} ease-out forwards`,
+              animationDelay: `${p.delay}s`,
+              opacity: 0,
+              "--dx": `${p.dx}px`,
+              "--dy": `${p.dy}px`,
+            }} />
+          ))}
+        </div>
+      )}
 
       {/* Message bar */}
       {message && (
@@ -364,6 +494,91 @@ export default function GameScreen({ game }) {
         </div>
       )}
 
+      {/* Level Up overlay */}
+      {levelUpData && (
+        <div
+          onClick={() => setLevelUpData(null)}
+          onTouchStart={() => setLevelUpData(null)}
+          style={{
+            position: "absolute", inset: 0, zIndex: 100,
+            background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer",
+          }}
+        >
+          <div style={{
+            textAlign: "center", padding: "32px 48px", borderRadius: "20px",
+            background: "radial-gradient(ellipse at center, rgba(255,215,0,0.12) 0%, rgba(0,0,0,0.9) 70%)",
+            border: "2px solid #FFD700",
+            boxShadow: "0 0 60px rgba(255,215,0,0.3)",
+            animation: "levelUpBounce 0.5s ease-out",
+            maxWidth: "90vw",
+          }}>
+            <div style={{ fontSize: "16px", color: "#8BB4D6", marginBottom: "8px", letterSpacing: "3px", textTransform: "uppercase" }}>
+              Nivel Up!
+            </div>
+            <div style={{
+              fontSize: "64px", fontWeight: 900, color: "#FFD700",
+              textShadow: "0 0 20px rgba(255,215,0,0.5)",
+            }}>
+              {levelUpData.level}
+            </div>
+            {levelUpData.unlocks.length > 0 ? (
+              <div style={{ marginTop: "16px" }}>
+                <div style={{ fontSize: "13px", color: "#8BB4D6", marginBottom: "10px" }}>
+                  Novos desbloqueios:
+                </div>
+                {levelUpData.unlocks.map((item, i) => (
+                  <div key={i} style={{
+                    fontSize: "15px", color: "#e0e0e0", padding: "4px 0",
+                  }}>
+                    {item.icon} {item.name}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: "14px", color: "#8BB4D6", marginTop: "12px" }}>
+                Novas aventuras te esperam!
+              </div>
+            )}
+            <div style={{ fontSize: "12px", color: "#5A7A8A", marginTop: "20px" }}>
+              Toque para continuar
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tutorial overlay */}
+      {tutorialStep >= 1 && tutorialStep <= 5 && (
+        <div style={{
+          position: "absolute", bottom: 0, left: 0, right: 0,
+          paddingBottom: "120px", paddingTop: "16px",
+          display: "flex", flexDirection: "column", alignItems: "center", gap: "10px",
+          pointerEvents: "none", zIndex: 15,
+          background: "linear-gradient(0deg, rgba(0,0,0,0.4) 0%, transparent 100%)",
+        }}>
+          <div style={{
+            padding: "12px 24px", borderRadius: "12px",
+            background: "rgba(0,0,0,0.7)", border: "1px solid rgba(100,181,246,0.4)",
+            backdropFilter: "blur(8px)",
+            fontSize: "16px", fontWeight: 600, color: "#e0e0e0",
+            textAlign: "center", maxWidth: "90%",
+            animation: "tutorialFade 0.4s ease-out",
+          }}>
+            {TUTORIAL_STEPS[tutorialStep]}
+          </div>
+          <div style={{ display: "flex", gap: "6px" }}>
+            {[1, 2, 3, 4, 5].map(s => (
+              <div key={s} style={{
+                width: "8px", height: "8px", borderRadius: "50%",
+                background: s === tutorialStep ? "#64b5f6" : s < tutorialStep ? "#4CAF50" : "rgba(255,255,255,0.2)",
+                transition: "background 0.3s",
+              }} />
+            ))}
+          </div>
+        </div>
+      )}
+
       <style>{`
         @keyframes waterWave {
           0%, 100% { transform: translateX(-20px) scaleY(1); }
@@ -381,6 +596,10 @@ export default function GameScreen({ game }) {
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.85; transform: scale(1.03); }
         }
+        @keyframes hookPulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.9; transform: scale(1.08); }
+        }
         @keyframes popIn {
           0% { transform: scale(0.5); opacity: 0; }
           100% { transform: scale(1); opacity: 1; }
@@ -388,6 +607,35 @@ export default function GameScreen({ game }) {
         @keyframes slideDown {
           0% { transform: translateX(-50%) translateY(-20px); opacity: 0; }
           100% { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+        @keyframes tutorialFade {
+          0% { opacity: 0; transform: translateY(10px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes screenShake {
+          0%, 100% { transform: translate(0, 0); }
+          25% { transform: translate(-2px, 1px); }
+          50% { transform: translate(2px, -1px); }
+          75% { transform: translate(-1px, -2px); }
+        }
+        @keyframes particleSplash {
+          0% { opacity: 1; transform: translate(0, 0); }
+          100% { opacity: 0; transform: translate(var(--dx), var(--dy)); }
+        }
+        @keyframes catchGlow {
+          0% { opacity: 1; transform: translate(0, 0) scale(1); }
+          50% { opacity: 0.8; }
+          100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.3); }
+        }
+        @keyframes legendaryPopIn {
+          0% { transform: scale(0.3) rotate(-10deg); opacity: 0; filter: brightness(3); }
+          50% { filter: brightness(1.5); }
+          100% { transform: scale(1) rotate(0deg); opacity: 1; filter: brightness(1); }
+        }
+        @keyframes levelUpBounce {
+          0% { transform: scale(0.5) translateY(30px); opacity: 0; }
+          60% { transform: scale(1.05) translateY(-5px); opacity: 1; }
+          100% { transform: scale(1) translateY(0); }
         }
       `}</style>
     </div>

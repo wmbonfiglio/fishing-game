@@ -2,14 +2,14 @@
 
 ## 1. Análise Crítica das Mecânicas
 
-### Onboarding (Nota: 3/10)
+### Onboarding (Nota: 3/10 → 6/10) ✅ Parcialmente resolvido
 
-O jogo não tem tutorial. A única instrução é uma linha na tela título: *"ESPAÇO para lançar e fisgar - Segure ESPAÇO para recolher"*.
+~~O jogo não tem tutorial.~~ **Fase 0 implementou tutorial interativo de 5 etapas** que guia a primeira pescaria completa (lançar → força → esperar → fisgar → recolher). Desaparece após a primeira captura e é persistido no save.
 
-- O minigame de recolher (a mecânica central) nunca é explicado. O jogador não sabe o que é a "zona de captura", por que a barra de tensão existe, ou que a linha pode arrebentar.
-- Não há primeira pescaria guiada. O jogador é jogado na Lagoa sem contexto.
-- Os termos "Progresso" e "Tensão" aparecem durante o reeling sem explicação do que fazer para influenciá-los.
-- A fase de "espera" (waiting) mostra "❗ PEIXE!" mas não diz que você tem apenas 2 segundos para reagir.
+- ~~O minigame de recolher nunca é explicado.~~ **Resolvido**: Step 5 do tutorial explica "Mantenha o peixe na zona verde! Cuidado com a tensão!"
+- ~~Não há primeira pescaria guiada.~~ **Resolvido**: Tutorial acompanha cada fase com instruções contextuais + indicadores de progresso (dots 1-5).
+- Os termos "Progresso" e "Tensão" ainda poderiam ter tooltips mais detalhados (melhoria futura).
+- ~~A fase de "espera" não diz que tem 2 segundos para reagir.~~ **Resolvido**: Step 4 diz "AGORA! Pressione para fisgar!"
 
 ### Economia (Nota: 4/10)
 
@@ -46,36 +46,37 @@ XP por nível segue `100 * 1.4^(n-1)`:
 2. **Sem marcos intermediários** - Entre Lv10 (Oceano) e Lv18 (Abismo) são 8 níveis onde quase nada novo acontece. Apenas 3 equipamentos desbloqueiam nesse intervalo (Titânio Lv12, Isca Mágica Lv14, Mythril Lv16). São ~5 horas com pouca novidade.
 3. **Locais anteriores ficam inúteis** - Quando desbloqueia o Rio, nunca mais há razão para voltar à Lagoa. Não há peixes exclusivos que justifiquem voltar.
 
-### Curva de Desafio (Nota: 6/10)
+### Curva de Desafio (Nota: 6/10 → 7/10) ✅ Parcialmente resolvido
 
 | Local | Difficulty | Speed | Zona de captura* | Sensação |
 |-------|-----------|-------|-----------------|----------|
 | Lagoa | 0.8-4 | 1-1.8 | 18% (Bambu) | Tranquilo |
 | Rio | 2.2-5 | 1.2-3 | 18.6% (Fibra) | Moderado |
 | Oceano | 3-6 | 0.8-3.2 | 19.5% (Carbono) | Desafiante |
-| Abismo | 3-8 | 2-3.5 | 22.5% (Mythril) | Brutal |
+| Abismo | 3-7 | 2-2.8 | 22.5% (Mythril) | Desafiante+ |
 
 *Zona = `15 + rod.tension * 3`
 
 **Problemas:**
 
-1. **Leviatã pode ser impossível** - Com difficulty 8 e speed 3.5, o peixe se move `8 * 3.5 * 0.4 = 11.2 unidades/tick` + jitter. A zona de captura com a melhor vara é 24%. O peixe atravessa metade da zona em um único frame. É RNG puro, não skill.
-2. **Dificuldade não escala com skill** - A única forma de facilitar é comprar equipamento melhor. Não há como um jogador habilidoso superar equipamento fraco. A vara move a zona a `1.5 * power` por tick - com Bambu isso é 1.5 unidades, enquanto peixes do Abismo movem 5-11 unidades. Matematicamente impossível.
+1. ~~**Leviatã pode ser impossível**~~ **Resolvido**: Leviatã rebalanceado (difficulty 8→7, speed 3.5→2.8). Movimento médio agora `7 * 2.8 * 0.4 = 7.84 unidades/tick` (era 11.2). Dragão Marinho também ajustado (speed 3→2.5). Ambos continuam desafiantes mas catchable com Divine Rod (half-zone = 12 units).
+2. **Dificuldade não escala com skill** - A única forma de facilitar é comprar equipamento melhor. Não há como um jogador habilidoso superar equipamento fraco. A vara move a zona a `1.5 * power` por tick - com Bambu isso é 1.5 unidades, enquanto peixes do Abismo movem 5-8 unidades. Matematicamente impossível.
 3. **Tensão é pouco punitiva no early game** - Com peixes fáceis, a tensão nunca chega perto de 100%. O jogador não aprende a gerenciar tensão até enfrentar peixes difíceis, quando já é tarde.
 
-### Engajamento / Retenção (Nota: 3/10)
+### Engajamento / Retenção (Nota: 3/10 → 6/10) ✅ Parcialmente resolvido
 
-1. **Zero persistência** - F5 perde tudo. O jogador que investiu horas perde tudo ao fechar o browser.
+1. ~~**Zero persistência**~~ **Resolvido**: Auto-save com localStorage (17 variáveis, inclui isMuted). Botão "CONTINUAR" na tela título quando há save. Botão "NOVO JOGO" limpa save e reinicia.
 2. **Sem variedade entre sessões** - Toda pescaria é idêntica. Sem clima, sem hora do dia, sem eventos.
 3. **Sem metas de curto prazo** - As conquistas são distantes (10, 50, 200 peixes). Não há objetivos diários ou semanais.
 4. **A fase de espera é tempo morto** - O jogador fica olhando um emoji de anzol por 1-5 segundos sem interação.
-5. **Sem feedback sensorial** - Sem som, sem vibração, sem partículas. Pescar um Leviatã mítico tem o mesmo feedback visual que uma Sardinha.
+5. ~~**Sem feedback sensorial**~~ **Resolvido (Fase 1)**: 7 sons procedurais via Web Audio API, partículas de splash/catch, screen shake em tensão alta, silhueta do peixe na água, card especial para legendary/mythic, overlay de level up com desbloqueios, botão mute.
 
-### Mobile (Nota: 2/10)
+### Mobile (Nota: 2/10 → 6/10) ✅ Parcialmente resolvido
 
 - O botão "LANÇAR LINHA" funciona com touch (mouseDown/mouseUp).
 - O botão "SEGURAR PARA RECOLHER" funciona com touch.
-- **MAS**: durante a fase `waiting`, não há botão para fisgar o peixe. Só funciona com teclado. Mobile está quebrado na etapa mais crítica.
+- ~~**MAS**: durante a fase `waiting`, não há botão para fisgar o peixe.~~ **Resolvido**: Botão "FISGAR!" (vermelho, pulsante a 0.5s) aparece durante `waiting` + `bobberExclamation`. Suporta `onClick` e `onTouchStart` com `preventDefault`.
+- Ainda falta: layout responsivo, tamanho dos botões em telas pequenas, orientação landscape forçada.
 
 ### O que funciona bem
 
@@ -90,26 +91,27 @@ XP por nível segue `100 * 1.4^(n-1)`:
 
 ## 2. Roadmap de Evolução
 
-### Fase 0 - Fundação (urgente)
-> *Sem isso o jogo não retém ninguém*
+### Fase 0 - Fundação ✅ CONCLUÍDA
+> *Implementada em 05/02/2026*
 
-| Item | Prioridade | Impacto |
-|------|-----------|---------|
-| **Save/Load com localStorage** | Crítico | Sem isso, ninguém joga mais de 1 sessão |
-| **Tutorial interativo** | Crítico | Primeira pescaria guiada, ensinar reeling |
-| **Botão de fisgar no mobile** | Crítico | Mobile está literalmente quebrado |
-| **Balanceamento do Leviatã** | Alto | Reduzir speed para 2.5 ou adicionar "janelas de calma" |
+| Item | Status | Detalhes |
+|------|--------|----------|
+| **Save/Load com localStorage** | ✅ Feito | Auto-save de 16 variáveis, lazy init com `??` defaults, botão CONTINUAR/NOVO JOGO |
+| **Tutorial interativo** | ✅ Feito | 5 etapas contextuais (idle→casting→waiting→hook→reeling), dots indicadores, `pointerEvents: "none"`, persiste no save |
+| **Botão de fisgar no mobile** | ✅ Feito | Botão "FISGAR!" vermelho pulsante (0.5s), onClick + onTouchStart, aparece apenas com bobberExclamation |
+| **Balanceamento do Leviatã** | ✅ Feito | Leviatã: difficulty 8→7, speed 3.5→2.8. Dragão Marinho: speed 3→2.5 |
 
-### Fase 1 - Feedback & Polish
-> *Tornar cada pescaria satisfatória*
+### Fase 1 - Feedback & Polish ✅ CONCLUÍDA
+> *Implementada em 05/02/2026*
 
-| Item | Descrição |
-|------|-----------|
-| **Efeitos sonoros** | Splash ao lançar, tensão crescente no reeling, fanfarra ao capturar raro+ |
-| **Partículas/VFX** | Splash na água, brilho na captura, shake na tela quando tensão > 80% |
-| **Animação do peixe** | Mostrar silhueta do peixe na água durante reeling |
-| **Feedback de raridade** | Captura de legendário/mítico merece uma animação especial, não o mesmo card |
-| **Notificação de level up** | Tela dedicada mostrando o que desbloqueou |
+| Item | Status | Detalhes |
+|------|--------|----------|
+| **Efeitos sonoros** | ✅ Feito | 7 sons procedurais via Web Audio API (`src/utils/audio.js`): splash, bite, reel warning (tensão >70%), catch (arpejo por rarity), escape, level up. Sem libs externas, sem arquivos de áudio. Botão mute no HUD, persiste no save |
+| **Partículas/VFX** | ✅ Feito | Splash (8 gotas azuis ao lançar), catch glow (6-12 partículas na cor da rarity), screen shake quando tensão >80% |
+| **Animação do peixe** | ✅ Feito | Silhueta do peixe na água durante reeling: `blur(4px) brightness(0.5)`, `opacity: 0.4`, acompanha posição do peixe |
+| **Feedback de raridade** | ✅ Feito | Legendary/mythic: `legendaryPopIn` animation, `radial-gradient` background, `boxShadow: 0 0 40px`, badges (⭐ / ⭐✨⭐) |
+| **Notificação de level up** | ✅ Feito | Overlay fullscreen z100, card com nível grande + lista de unlocks (helper `calculateUnlocks`), dismiss por click/touch |
+| **QoL: Espaço para continuar** | ✅ Feito | Tecla Espaço aceita na tela "caught" para pescar novamente, com cooldown de 800ms para evitar skip acidental |
 
 ### Fase 2 - Profundidade Econômica
 > *Criar decisões interessantes*
@@ -159,13 +161,13 @@ XP por nível segue `100 * 1.4^(n-1)`:
 ```
 IMPACTO
   ▲
-  │  ★ Save/Load     ★ Tutorial     ★ Consumíveis
+  │  ✅ Save/Load    ✅ Tutorial     ★ Consumíveis
   │
-  │  ★ SFX           ★ Clima        ★ Boss Fish
-  │  ★ Mobile fix    ★ Combos       ★ Aquário
+  │  ✅ SFX          ★ Clima        ★ Boss Fish
+  │  ✅ Mobile fix   ★ Combos       ★ Aquário
   │
-  │  ★ Partículas    ★ Missões      ★ Crafting
-  │  ★ Balancear     ★ Variantes    ★ Prestígio
+  │  ✅ Partículas   ★ Missões      ★ Crafting
+  │  ✅ Balancear    ★ Variantes    ★ Prestígio
   │
   │                                  ★ Leaderboard
   │                                  ★ Torneios
@@ -173,4 +175,4 @@ IMPACTO
      Baixo           Médio           Alto
 ```
 
-**Recomendação**: atacar Fase 0 primeiro (save, tutorial, mobile fix). Sem isso nenhuma feature adicional importa porque ninguém vai chegar a vê-las.
+**Próximo passo**: Fases 0 e 1 concluídas. Atacar **Fase 2 (Profundidade Econômica)** - consumíveis, inventário, variantes e combos para criar decisões interessantes e retenção de longo prazo.
