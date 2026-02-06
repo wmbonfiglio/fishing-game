@@ -37,12 +37,12 @@ export default function useRhythmMechanic({ gamePhase, currentFish, keysRef, equ
     const isBoss = !!currentBossRef.current;
     const bossMulti = isBoss ? 1.4 : 1;
     return {
-      ringSpeed: (0.008 + diff * 0.003) * bossMulti,
-      spawnInterval: Math.max(500, 1400 - diff * 150) / bossMulti,
+      ringSpeed: (0.0008 + diff * 0.0003) * bossMulti,
+      spawnInterval: Math.max(600, 1800 - diff * 150) / bossMulti,
       tensionPerMiss: (6 + diff * 2.5) * bossMulti / line.strength,
-      progressPerPerfect: (3.5 + rod.power * 1.5) * (line.reelBonus ?? 1.0),
-      progressPerGood: (1.5 + rod.power * 0.5) * (line.reelBonus ?? 1.0),
-      progressDecay: 0.02 * diff,
+      progressPerPerfect: (18 + rod.power * 4) * (line.reelBonus ?? 1.0),
+      progressPerGood: (8 + rod.power * 2) * (line.reelBonus ?? 1.0),
+      progressDecay: 0.008 * diff,
       tensionDecay: 0.12 * line.strength,
     };
   };
