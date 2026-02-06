@@ -11,7 +11,7 @@
 - Os termos "Progresso" e "Tensão" ainda poderiam ter tooltips mais detalhados (melhoria futura).
 - ~~A fase de "espera" não diz que tem 2 segundos para reagir.~~ **Resolvido**: Step 4 diz "AGORA! Pressione para fisgar!"
 
-### Economia (Nota: 4/10)
+### Economia (Nota: 4/10 → 7/10) ✅ Substancialmente resolvido
 
 **Renda média por localização:**
 
@@ -24,10 +24,10 @@
 
 **Problemas estruturais:**
 
-1. **Iscas são permanentes** - Uma vez comprada, é sua para sempre. A isca mais cara custa 500 ouro (trivial no mid-game). Não há money sink recorrente. O jogador acumula ouro infinitamente sem nada para gastar.
-2. **Sem escolha horizontal** - Cada tier de equipamento é estritamente melhor que o anterior. Não existe "vara boa para peixes rápidos vs vara boa para peixes pesados". Sempre compre o próximo da lista.
-3. **Auto-venda forçada** - Todo peixe é vendido automaticamente. Não há decisão de manter vs vender, não há inventário, não há peixes troféu.
-4. **Preço de iscas irrelevante** - Grilo custa 5, Camarão 15. Isso é insignificante mesmo no early game (começa com 50). Comprar tudo cedo é trivial.
+1. ~~**Iscas são permanentes**~~ **Resolvido (Fase 2)**: Iscas agora são consumíveis (exceto Minhoca). Cada lançamento consome 1 unidade. Compra em stacks (3-20 unidades). Money sink recorrente criado. Auto-switch para Minhoca quando acabam.
+2. ~~**Sem escolha horizontal**~~ **Resolvido (Fase 2)**: 13 equipamentos horizontais adicionados - 5 varas (Chicote, Bambu da Sorte, Arpão, Coral, Elétrica), 4 iscas (Vagalume, Minhoca Dourada, Água-Viva, Isca Abissal), 4 linhas (Seda, Elástica, Fibra de Carbono, Fio de Mithril). Cada alternativa tem tradeoffs claros (ex: Vara Chicote = +força/-zona, Bambu da Sorte = -força/+sorte).
+3. ~~**Auto-venda forçada**~~ **Resolvido (Fase 2)**: Catch card agora oferece 3 opções: Vender (ouro imediato), Guardar (inventário de 30 slots com sistema de troféu), ou Isca (bonus de raridade na próxima pesca). Tela de inventário completa com filtros, sort, bulk sell e proteção de troféus.
+4. ~~**Preço de iscas irrelevante**~~ **Parcialmente resolvido**: Iscas consumíveis criam custo recorrente. Isca Abissal (200 ouro/5 unidades) e Isca Ancestral (500 ouro/3 unidades) são money sinks significativos no mid/late game.
 
 ### Curva de Progressão (Nota: 5/10)
 
@@ -43,7 +43,7 @@ XP por nível segue `100 * 1.4^(n-1)`:
 **Problemas:**
 
 1. **Early game bom, mid-game monótono** - Lv1-5 flui bem (~23 min). Mas Lv10-18 é um grind de 5+ horas fazendo exatamente a mesma coisa repetidamente, sem novas mecânicas desbloqueadas.
-2. **Sem marcos intermediários** - Entre Lv10 (Oceano) e Lv18 (Abismo) são 8 níveis onde quase nada novo acontece. Apenas 3 equipamentos desbloqueiam nesse intervalo (Titânio Lv12, Isca Mágica Lv14, Mythril Lv16). São ~5 horas com pouca novidade.
+2. ~~**Sem marcos intermediários**~~ **Parcialmente resolvido (Fase 2)**: Equipamentos horizontais adicionam desbloqueios em quase todos os tiers. Agora entre Lv10-18: Linha Trançada/Fibra de Carbono (Lv10), Vara Elétrica/Titânio (Lv12), Isca Mágica/Isca Abissal (Lv14), Aço/Fio de Mithril/Mythril (Lv15-16). Mais decisões de compra ao longo do mid-game.
 3. **Locais anteriores ficam inúteis** - Quando desbloqueia o Rio, nunca mais há razão para voltar à Lagoa. Não há peixes exclusivos que justifiquem voltar.
 
 ### Curva de Desafio (Nota: 6/10 → 7/10) ✅ Parcialmente resolvido
@@ -63,13 +63,14 @@ XP por nível segue `100 * 1.4^(n-1)`:
 2. **Dificuldade não escala com skill** - A única forma de facilitar é comprar equipamento melhor. Não há como um jogador habilidoso superar equipamento fraco. A vara move a zona a `1.5 * power` por tick - com Bambu isso é 1.5 unidades, enquanto peixes do Abismo movem 5-8 unidades. Matematicamente impossível.
 3. **Tensão é pouco punitiva no early game** - Com peixes fáceis, a tensão nunca chega perto de 100%. O jogador não aprende a gerenciar tensão até enfrentar peixes difíceis, quando já é tarde.
 
-### Engajamento / Retenção (Nota: 3/10 → 6/10) ✅ Parcialmente resolvido
+### Engajamento / Retenção (Nota: 3/10 → 7/10) ✅ Substancialmente resolvido
 
-1. ~~**Zero persistência**~~ **Resolvido**: Auto-save com localStorage (17 variáveis, inclui isMuted). Botão "CONTINUAR" na tela título quando há save. Botão "NOVO JOGO" limpa save e reinicia.
+1. ~~**Zero persistência**~~ **Resolvido**: Auto-save com localStorage (24 variáveis, inclui Phase 2 states). Botão "CONTINUAR" na tela título quando há save. Botão "NOVO JOGO" limpa save e reinicia.
 2. **Sem variedade entre sessões** - Toda pescaria é idêntica. Sem clima, sem hora do dia, sem eventos.
-3. **Sem metas de curto prazo** - As conquistas são distantes (10, 50, 200 peixes). Não há objetivos diários ou semanais.
+3. ~~**Sem metas de curto prazo**~~ **Parcialmente resolvido (Fase 2)**: 5 novas conquistas (combo x5, peixe dourado, peixe gigante, 5 troféus, usar peixe como isca). Combo counter dá feedback constante. Variantes dourado/gigante criam momentos de surpresa. Ainda faltam missões diárias.
 4. **A fase de espera é tempo morto** - O jogador fica olhando um emoji de anzol por 1-5 segundos sem interação.
 5. ~~**Sem feedback sensorial**~~ **Resolvido (Fase 1)**: 7 sons procedurais via Web Audio API, partículas de splash/catch, screen shake em tensão alta, silhueta do peixe na água, card especial para legendary/mythic, overlay de level up com desbloqueios, botão mute.
+6. ~~**Sem decisão pós-captura**~~ **Resolvido (Fase 2)**: 3 opções ao capturar (Vender/Guardar/Isca), inventário com troféus, combo multiplier incentiva pescarias consecutivas.
 
 ### Mobile (Nota: 2/10 → 6/10) ✅ Parcialmente resolvido
 
@@ -86,6 +87,10 @@ XP por nível segue `100 * 1.4^(n-1)`:
 - O visual é limpo e atmosférico (gradientes, animações de água).
 - A estrutura de 4 locais com identidade visual própria é sólida.
 - O sistema de conquistas fornece marcos de longo prazo.
+- **(Fase 2)** O sistema de variantes (dourado/gigante) cria momentos "wow" inesperados.
+- **(Fase 2)** O combo multiplier incentiva sessões mais longas e penaliza erros de forma justa.
+- **(Fase 2)** A decisão Vender/Guardar/Isca após captura dá agência ao jogador em cada pesca.
+- **(Fase 2)** Equipamentos horizontais com tradeoffs claros permitem builds diferenciados.
 
 ---
 
@@ -113,16 +118,19 @@ XP por nível segue `100 * 1.4^(n-1)`:
 | **Notificação de level up** | ✅ Feito | Overlay fullscreen z100, card com nível grande + lista de unlocks (helper `calculateUnlocks`), dismiss por click/touch |
 | **QoL: Espaço para continuar** | ✅ Feito | Tecla Espaço aceita na tela "caught" para pescar novamente, com cooldown de 800ms para evitar skip acidental |
 
-### Fase 2 - Profundidade Econômica
-> *Criar decisões interessantes*
+### Fase 2 - Profundidade Econômica ✅ CONCLUÍDA
+> *Implementada em 06/02/2026*
 
-| Item | Descrição |
-|------|-----------|
-| **Iscas consumíveis** | Cada uso gasta 1 isca. Minhoca é infinita, as demais precisam ser recompradas. Cria money sink |
-| **Inventário de peixes** | Não auto-vender. Jogador escolhe: vender, manter como troféu, ou usar como isca |
-| **Peixes variantes** | 5% chance de "dourado" (2x preço), 1% "gigante" (3x peso) |
-| **Multiplicador de combo** | Pescarias consecutivas sem escape: x1.5, x2, x2.5 no ouro |
-| **Equipamento horizontal** | "Vara Elétrica" (mais velocidade, menos zona) vs "Vara Pesada" (mais zona, menos velocidade) |
+| Item | Status | Detalhes |
+|------|--------|----------|
+| **Iscas consumíveis** | ✅ Feito | Cada lançamento consome 1 unidade (exceto Minhoca infinita). Compra em stacks. Auto-switch para Minhoca ao esgotar. `baitQuantities` map no save. Recompra ilimitada na loja |
+| **Inventário de peixes** | ✅ Feito | Tela `InventoryScreen.jsx` completa: grid responsivo, 30 slots, sort (recente/peso/preço/raridade), filtro por rarity, bulk sell protege troféus, toggle troféu por peixe |
+| **Peixes variantes** | ✅ Feito | `rollVariant()`: 94% normal, 5% dourado (2x preço, visual sepia/saturate), 1% gigante (3x peso, emoji maior). Badge na catch card e reeling HUD. Contagem de variantes na coleção |
+| **Multiplicador de combo** | ✅ Feito | Incrementa a cada captura, reseta no escape. Multiplier: `min(1 + (combo-1)*0.5, 2.5)`. HUD badge "COMBO x1.5" com pulse. Achievement "Em Chamas!" (combo x5) |
+| **Equipamento horizontal** | ✅ Feito | 13 alternativas: 5 varas (Chicote, Bambu Sorte, Arpão, Coral, Elétrica), 4 iscas (Vagalume, Minhoca Dourada, Água-Viva, Abissal), 4 linhas (Seda, Elástica, Fibra Carbono, Mithril) com `reelBonus`. Shop ordena por unlockLevel |
+| **Catch card 3 botões** | ✅ Feito | Vender (💰 ouro imediato), Guardar (🎒 inventário, disabled se cheio), Isca (🎣 bonus raridade próxima pesca). Espaço removido do caught phase |
+| **Fish-as-bait** | ✅ Feito | Usar peixe como isca dá `FISH_BAIT_BONUS[rarity]` (5%-75% raridade). Consome-se no próximo lançamento. Indicador verde no HUD |
+| **5 novos achievements** | ✅ Feito | combo_5, golden_catch, giant_catch, trophy_5, fish_bait. Stats expandidos em `getStats()` |
 
 ### Fase 3 - Variedade & Metas
 > *Cada sessão diferente da anterior*
@@ -161,18 +169,18 @@ XP por nível segue `100 * 1.4^(n-1)`:
 ```
 IMPACTO
   ▲
-  │  ✅ Save/Load    ✅ Tutorial     ★ Consumíveis
+  │  ✅ Save/Load    ✅ Tutorial     ✅ Consumíveis
   │
   │  ✅ SFX          ★ Clima        ★ Boss Fish
-  │  ✅ Mobile fix   ★ Combos       ★ Aquário
+  │  ✅ Mobile fix   ✅ Combos       ★ Aquário
   │
   │  ✅ Partículas   ★ Missões      ★ Crafting
-  │  ✅ Balancear    ★ Variantes    ★ Prestígio
+  │  ✅ Balancear    ✅ Variantes    ★ Prestígio
   │
-  │                                  ★ Leaderboard
+  │  ✅ Horizontais  ✅ Inventário   ★ Leaderboard
   │                                  ★ Torneios
   └──────────────────────────────────────────► ESFORÇO
      Baixo           Médio           Alto
 ```
 
-**Próximo passo**: Fases 0 e 1 concluídas. Atacar **Fase 2 (Profundidade Econômica)** - consumíveis, inventário, variantes e combos para criar decisões interessantes e retenção de longo prazo.
+**Próximo passo**: Fases 0, 1 e 2 concluídas. Atacar **Fase 3 (Variedade & Metas)** - clima, missões diárias, eventos na espera, boss fish e razões para revisitar locais anteriores.

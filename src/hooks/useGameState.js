@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   LOCATIONS, FISH_DATABASE, RODS, BAITS, LINES, ACHIEVEMENTS,
   RARITY_NAMES, xpForLevel, SAVE_KEY,
+  VARIANTS, VARIANT_ORDER, FISH_BAIT_BONUS, INVENTORY_CAP,
 } from "../data/gameData";
 import {
   playSplash, playBite, playReel, stopReel, updateReelTension,
@@ -54,6 +55,17 @@ export default function useGameState() {
   const [achievementPopup, setAchievementPopup] = useState(null);
   const [shopTab, setShopTab] = useState("rods");
 
+  // Phase 2 states
+  const [baitQuantities, setBaitQuantities] = useState(saved?.baitQuantities ?? {});
+  const [fishInventory, setFishInventory] = useState(saved?.fishInventory ?? []);
+  const [comboCount, setComboCount] = useState(0);
+  const [fishBaitBonus, setFishBaitBonus] = useState(saved?.fishBaitBonus ?? 0);
+  const [currentVariant, setCurrentVariant] = useState(null);
+  const [maxCombo, setMaxCombo] = useState(saved?.maxCombo ?? 0);
+  const [goldenCaught, setGoldenCaught] = useState(saved?.goldenCaught ?? 0);
+  const [giantCaught, setGiantCaught] = useState(saved?.giantCaught ?? 0);
+  const [fishUsedAsBait, setFishUsedAsBait] = useState(saved?.fishUsedAsBait ?? 0);
+
   // Audio & Level Up
   const [isMuted, setIsMuted] = useState(saved?.isMuted ?? false);
   const [levelUpData, setLevelUpData] = useState(null);
@@ -99,6 +111,8 @@ export default function useGameState() {
       caughtFish, totalCaught, totalGoldEarned,
       biggestFish, unlockedAchievements, tutorialComplete,
       isMuted,
+      baitQuantities, fishInventory, fishBaitBonus,
+      maxCombo, goldenCaught, giantCaught, fishUsedAsBait,
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
   }, [
@@ -108,6 +122,8 @@ export default function useGameState() {
     caughtFish, totalCaught, totalGoldEarned,
     biggestFish, unlockedAchievements, tutorialComplete,
     isMuted,
+    baitQuantities, fishInventory, fishBaitBonus,
+    maxCombo, goldenCaught, giantCaught, fishUsedAsBait,
   ]);
 
   // Tutorial progression: advance step when gamePhase changes
@@ -163,6 +179,17 @@ export default function useGameState() {
     return () => stopReel();
   }, [tension, gamePhase]);
 
+  // Roll variant
+  const rollVariant = useCallback(() => {
+    const roll = Math.random();
+    let cumulative = 0;
+    for (const key of VARIANT_ORDER) {
+      cumulative += VARIANTS[key].chance;
+      if (roll <= cumulative) return VARIANTS[key];
+    }
+    return VARIANTS.normal;
+  }, []);
+
   // Stats for achievements
   const getStats = useCallback(() => {
     let rareCaught = 0, epicCaught = 0, legendaryCaught = 0, mythicCaught = 0, uniqueSpecies = 0;
@@ -176,8 +203,14 @@ export default function useGameState() {
         if (fish.rarity === "mythic") mythicCaught += data.count;
       }
     });
-    return { totalCaught, totalGoldEarned, level, biggestFish, rareCaught, epicCaught, legendaryCaught, mythicCaught, uniqueSpecies };
-  }, [caughtFish, totalCaught, totalGoldEarned, level, biggestFish]);
+    return {
+      totalCaught, totalGoldEarned, level, biggestFish,
+      rareCaught, epicCaught, legendaryCaught, mythicCaught, uniqueSpecies,
+      maxCombo, goldenCaught, giantCaught,
+      trophyCount: fishInventory.filter(f => f.isTrophy).length,
+      fishUsedAsBait,
+    };
+  }, [caughtFish, totalCaught, totalGoldEarned, level, biggestFish, maxCombo, goldenCaught, giantCaught, fishInventory, fishUsedAsBait]);
 
   // Check achievements
   const checkAchievements = useCallback(() => {
@@ -193,7 +226,7 @@ export default function useGameState() {
 
   useEffect(() => {
     checkAchievements();
-  }, [totalCaught, level, gold, caughtFish]);
+  }, [totalCaught, level, gold, caughtFish, maxCombo, goldenCaught, giantCaught, fishInventory, fishUsedAsBait]);
 
   // Add XP and handle level up
   const addXp = useCallback((amount) => {
@@ -226,7 +259,7 @@ export default function useGameState() {
 
     const weightedFish = available.map(f => {
       let weight = rarityWeights[f.rarity] || 1;
-      if (f.rarity !== "common") weight *= (1 + bait.rarityBonus + rod.luck);
+      if (f.rarity !== "common") weight *= (1 + bait.rarityBonus + rod.luck + fishBaitBonus);
       return { fish: f, weight };
     });
 
@@ -238,11 +271,19 @@ export default function useGameState() {
       if (roll <= 0) return wf.fish;
     }
     return weightedFish[0].fish;
-  }, [currentLocation, equippedBait, equippedRod]);
+  }, [currentLocation, equippedBait, equippedRod, fishBaitBonus]);
 
   // Start casting
   const startCasting = () => {
     if (gamePhase !== "idle") return;
+
+    const bait = BAITS[equippedBait];
+    if (bait.consumable && (baitQuantities[bait.id] || 0) <= 0) {
+      setEquippedBait(0);
+      setMessage("Isca acabou! Voltando para minhoca.");
+      return;
+    }
+
     setGamePhase("casting");
     setCastPower(0);
     setCastDirection(1);
@@ -260,14 +301,34 @@ export default function useGameState() {
     setBobberExclamation(false);
     setMessage("Esperando o peixe morder...");
     if (!isMutedRef.current) playSplash();
+
+    // Consume bait
+    if (bait.consumable) {
+      setBaitQuantities(prev => {
+        const newQty = (prev[bait.id] || 0) - 1;
+        const updated = { ...prev, [bait.id]: Math.max(0, newQty) };
+        if (newQty <= 0) {
+          setEquippedBait(0);
+        }
+        return updated;
+      });
+    }
+
+    // Clear fish bait bonus after use
+    if (fishBaitBonus > 0) {
+      setFishBaitBonus(0);
+    }
   };
 
   // Hook fish
   const hookFish = () => {
     const fish = selectFish();
-    const weight = fish.minWeight + Math.random() * (fish.maxWeight - fish.minWeight);
+    const variant = rollVariant();
+    const baseWeight = fish.minWeight + Math.random() * (fish.maxWeight - fish.minWeight);
+    const weight = Math.round(baseWeight * variant.weightMultiplier * 100) / 100;
     setCurrentFish(fish);
-    setFishWeight(Math.round(weight * 100) / 100);
+    setFishWeight(weight);
+    setCurrentVariant(variant);
     setGamePhase("reeling");
     setFishPosition(50);
     fishPositionRef.current = 50;
@@ -277,7 +338,8 @@ export default function useGameState() {
     const initialDir = Math.random() > 0.5 ? 1 : -1;
     setFishDir(initialDir);
     fishDirRef.current = initialDir;
-    setMessage(`${fish.emoji} ${fish.name} (${RARITY_NAMES[fish.rarity]}) mordeu! Mantenha no alvo!`);
+    const variantLabel = variant.id !== "normal" ? ` [${variant.namePt}]` : "";
+    setMessage(`${fish.emoji} ${fish.name}${variantLabel} (${RARITY_NAMES[fish.rarity]}) mordeu! Mantenha no alvo!`);
   };
 
   // Handle key events
@@ -292,9 +354,8 @@ export default function useGameState() {
             startCasting();
           } else if (gamePhase === "waiting" && bobberExclamation) {
             hookFish();
-          } else if (gamePhase === "caught" && Date.now() - caughtAtRef.current > 800) {
-            resetFishing();
           }
+          // Removed: space no longer resets from "caught" phase (3 buttons now)
         }
       }
     };
@@ -370,6 +431,7 @@ export default function useGameState() {
     const difficulty = currentFish.difficulty;
     const speed = currentFish.speed;
     const catchZoneSizeLocal = 15 + rod.tension * 3;
+    const reelBonus = line.reelBonus ?? 1.0;
     let changeTimer = 0;
 
     const interval = setInterval(() => {
@@ -420,7 +482,7 @@ export default function useGameState() {
 
         setReelProgress(prev => {
           if (inZone) {
-            return Math.min(100, prev + 0.3 * rod.power);
+            return Math.min(100, prev + 0.3 * rod.power * reelBonus);
           }
           return Math.max(0, prev - 0.15 * difficulty);
         });
@@ -439,6 +501,7 @@ export default function useGameState() {
     if (tension >= 100) {
       setGamePhase("escaped");
       setCatchResult(null);
+      setComboCount(0);
       setMessage(`A linha arrebentou! ${currentFish?.name} escapou...`);
       if (!isMutedRef.current) playEscape();
       setTimeout(() => setGamePhase("idle"), 2500);
@@ -449,25 +512,35 @@ export default function useGameState() {
       caughtAtRef.current = Date.now();
       const fish = currentFish;
       const weight = fishWeight;
-      const priceMultiplier = 1 + (weight - fish.minWeight) / (fish.maxWeight - fish.minWeight);
-      const sellPrice = Math.floor(fish.basePrice * priceMultiplier);
+      const variant = currentVariant || VARIANTS.normal;
+      const priceRatio = 1 + (weight / variant.weightMultiplier - fish.minWeight) / (fish.maxWeight - fish.minWeight);
+      const basePrice = Math.floor(fish.basePrice * priceRatio * variant.priceMultiplier);
+      const newCombo = comboCount + 1;
+      setComboCount(newCombo);
+      if (newCombo > maxCombo) setMaxCombo(newCombo);
+      const comboMult = Math.min(1 + (newCombo - 1) * 0.5, 2.5);
+      const sellPrice = Math.floor(basePrice * comboMult);
 
-      setCatchResult({ fish, weight, sellPrice });
-      setGold(prev => prev + sellPrice);
-      setTotalGoldEarned(prev => prev + sellPrice);
+      setCatchResult({ fish, weight, sellPrice, variant, comboCount: newCombo, comboMultiplier: comboMult });
+
       setTotalCaught(prev => prev + 1);
       if (weight > biggestFish) setBiggestFish(weight);
       addXp(fish.xp);
       if (!isMutedRef.current) playCatch(fish.rarity);
 
+      if (variant.id === "golden") setGoldenCaught(prev => prev + 1);
+      if (variant.id === "giant") setGiantCaught(prev => prev + 1);
+
       setCaughtFish(prev => {
         const existing = prev[fish.id] || { count: 0, biggest: 0, smallest: Infinity };
+        const variants = existing.variants || { normal: 0, golden: 0, giant: 0 };
         return {
           ...prev,
           [fish.id]: {
             count: existing.count + 1,
             biggest: Math.max(existing.biggest, weight),
             smallest: Math.min(existing.smallest, weight),
+            variants: { ...variants, [variant.id]: (variants[variant.id] || 0) + 1 },
           }
         };
       });
@@ -479,7 +552,93 @@ export default function useGameState() {
     setGamePhase("idle");
     setCatchResult(null);
     setCurrentFish(null);
+    setCurrentVariant(null);
     setMessage("");
+  };
+
+  // Sell fish from catch card
+  const sellFish = () => {
+    if (!catchResult) return;
+    setGold(prev => prev + catchResult.sellPrice);
+    setTotalGoldEarned(prev => prev + catchResult.sellPrice);
+    resetFishing();
+  };
+
+  // Keep fish in inventory
+  const keepFish = () => {
+    if (!catchResult) return;
+    if (fishInventory.length >= INVENTORY_CAP) {
+      setGold(prev => prev + catchResult.sellPrice);
+      setTotalGoldEarned(prev => prev + catchResult.sellPrice);
+      setMessage("Inventário cheio! Peixe vendido automaticamente.");
+      resetFishing();
+      return;
+    }
+    setFishInventory(prev => [...prev, {
+      id: Date.now(),
+      fishId: catchResult.fish.id,
+      name: catchResult.fish.name,
+      emoji: catchResult.fish.emoji,
+      rarity: catchResult.fish.rarity,
+      weight: catchResult.weight,
+      sellPrice: catchResult.sellPrice,
+      variant: catchResult.variant,
+      isTrophy: false,
+      caughtAt: Date.now(),
+    }]);
+    resetFishing();
+  };
+
+  // Use fish as bait
+  const useFishAsBait = () => {
+    if (!catchResult) return;
+    const bonus = FISH_BAIT_BONUS[catchResult.fish.rarity] || 0.05;
+    setFishBaitBonus(bonus);
+    setFishUsedAsBait(prev => prev + 1);
+    resetFishing();
+  };
+
+  // Inventory actions
+  const sellInventoryFish = (index) => {
+    const fish = fishInventory[index];
+    if (!fish || fish.isTrophy) return;
+    setGold(prev => prev + fish.sellPrice);
+    setTotalGoldEarned(prev => prev + fish.sellPrice);
+    setFishInventory(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const bulkSellInventory = () => {
+    let totalSell = 0;
+    setFishInventory(prev => {
+      const kept = [];
+      for (const fish of prev) {
+        if (fish.isTrophy) {
+          kept.push(fish);
+        } else {
+          totalSell += fish.sellPrice;
+        }
+      }
+      return kept;
+    });
+    if (totalSell > 0) {
+      setGold(prev => prev + totalSell);
+      setTotalGoldEarned(prev => prev + totalSell);
+    }
+  };
+
+  const toggleTrophy = (index) => {
+    setFishInventory(prev => prev.map((fish, i) =>
+      i === index ? { ...fish, isTrophy: !fish.isTrophy } : fish
+    ));
+  };
+
+  const useInventoryFishAsBait = (index) => {
+    const fish = fishInventory[index];
+    if (!fish) return;
+    const bonus = FISH_BAIT_BONUS[fish.rarity] || 0.05;
+    setFishBaitBonus(bonus);
+    setFishUsedAsBait(prev => prev + 1);
+    setFishInventory(prev => prev.filter((_, i) => i !== index));
   };
 
   // Buy / equip item
@@ -490,6 +649,36 @@ export default function useGameState() {
     if (item.unlockLevel && level < item.unlockLevel) return;
 
     const owned = type === "rods" ? ownedRods : type === "baits" ? ownedBaits : ownedLines;
+
+    // Consumable bait: allow rebuy
+    if (type === "baits" && item.consumable) {
+      if (owned.includes(index)) {
+        // Already owned: check if just equipping (free) or rebuying
+        if (gold < item.price) {
+          // Just equip
+          setEquippedBait(index);
+          return;
+        }
+        // Rebuy stack
+        setGold(prev => prev - item.price);
+        setBaitQuantities(prev => ({
+          ...prev,
+          [item.id]: (prev[item.id] || 0) + item.stackSize,
+        }));
+        setEquippedBait(index);
+        return;
+      }
+      // First purchase
+      setGold(prev => prev - item.price);
+      setOwnedBaits(prev => [...prev, index]);
+      setBaitQuantities(prev => ({
+        ...prev,
+        [item.id]: (prev[item.id] || 0) + item.stackSize,
+      }));
+      setEquippedBait(index);
+      return;
+    }
+
     if (owned.includes(index)) {
       if (type === "rods") setEquippedRod(index);
       else if (type === "baits") setEquippedBait(index);
@@ -501,6 +690,15 @@ export default function useGameState() {
     if (type === "rods") { setOwnedRods(prev => [...prev, index]); setEquippedRod(index); }
     else if (type === "baits") { setOwnedBaits(prev => [...prev, index]); setEquippedBait(index); }
     else { setOwnedLines(prev => [...prev, index]); setEquippedLine(index); }
+  };
+
+  // Equip consumable bait (without buying)
+  const equipBait = (index) => {
+    const item = BAITS[index];
+    if (!item) return;
+    if (!ownedBaits.includes(index)) return;
+    if (item.consumable && (baitQuantities[item.id] || 0) <= 0) return;
+    setEquippedBait(index);
   };
 
   // Derived values
@@ -537,6 +735,11 @@ export default function useGameState() {
     // Stats
     totalCaught, totalGoldEarned, biggestFish, caughtFish,
     unlockedAchievements, achievementPopup,
+    // Phase 2
+    baitQuantities, fishInventory, comboCount, currentVariant, fishBaitBonus,
+    sellFish, keepFish, useFishAsBait,
+    sellInventoryFish, bulkSellInventory, toggleTrophy, useInventoryFishAsBait,
+    equipBait,
     // Actions
     startCasting, releaseCast, resetFishing, buyItem, hookFish,
     // Save

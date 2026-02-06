@@ -1,4 +1,4 @@
-import { LOCATIONS, FISH_DATABASE, RARITY_COLORS, RARITY_NAMES } from "../data/gameData";
+import { LOCATIONS, FISH_DATABASE, RARITY_COLORS, RARITY_NAMES, VARIANTS } from "../data/gameData";
 
 export default function CollectionScreen({ game }) {
   const { caughtFish, setScreen } = game;
@@ -42,6 +42,17 @@ export default function CollectionScreen({ game }) {
                         <div style={{ fontSize: "11px", color: "#6B7B8D", marginTop: "2px" }}>
                           {caught.smallest}kg ~ {caught.biggest}kg
                         </div>
+                        {/* Variant display */}
+                        {caught.variants && (caught.variants.golden > 0 || caught.variants.giant > 0) && (
+                          <div style={{ fontSize: "11px", marginTop: "4px", display: "flex", gap: "8px" }}>
+                            {caught.variants.golden > 0 && (
+                              <span style={{ color: "#FFD700" }}>✦ x{caught.variants.golden}</span>
+                            )}
+                            {caught.variants.giant > 0 && (
+                              <span style={{ color: "#CE93D8" }}>🔺 x{caught.variants.giant}</span>
+                            )}
+                          </div>
+                        )}
                         <div style={{ fontSize: "11px", color: "#5A6A7A", marginTop: "2px", fontStyle: "italic" }}>
                           {fish.description}
                         </div>

@@ -16,6 +16,20 @@ export const RARITY_NAMES = {
   mythic: "Mítico",
 };
 
+export const VARIANTS = {
+  normal: { id: "normal", namePt: "Normal", priceMultiplier: 1, weightMultiplier: 1, icon: "", chance: 0.94 },
+  golden: { id: "golden", namePt: "Dourado", priceMultiplier: 2, weightMultiplier: 1, icon: "✦", chance: 0.05 },
+  giant:  { id: "giant",  namePt: "Gigante", priceMultiplier: 1, weightMultiplier: 3, icon: "🔺", chance: 0.01 },
+};
+export const VARIANT_ORDER = ["normal", "golden", "giant"];
+
+export const FISH_BAIT_BONUS = {
+  common: 0.05, uncommon: 0.10, rare: 0.20,
+  epic: 0.35, legendary: 0.50, mythic: 0.75,
+};
+
+export const INVENTORY_CAP = 30;
+
 export const LOCATIONS = [
   {
     id: "pond",
@@ -94,23 +108,39 @@ export const RODS = [
   { id: "titanium", name: "Vara de Titânio", icon: "🔱", price: 2500, power: 2, tension: 2, luck: 0.15, unlockLevel: 12, description: "+100% força e tensão" },
   { id: "mythril", name: "Vara de Mythril", icon: "✨", price: 8000, power: 2.5, tension: 2.5, luck: 0.25, unlockLevel: 16, description: "Forjada em lendas" },
   { id: "divine", name: "Tridente Divino", icon: "🔱", price: 25000, power: 3.5, tension: 3, luck: 0.35, unlockLevel: 20, description: "Poder dos deuses" },
+  // Horizontal alternatives
+  { id: "whip", name: "Vara Chicote", icon: "🪄", price: 250, power: 1.6, tension: 0.8, luck: 0, unlockLevel: 3, description: "Mais força, zona menor" },
+  { id: "lucky_bamboo", name: "Bambu da Sorte", icon: "🍀", price: 300, power: 0.9, tension: 1.0, luck: 0.15, unlockLevel: 3, description: "Fraco mas sortudo" },
+  { id: "harpoon", name: "Arpão Leve", icon: "🔧", price: 900, power: 2.0, tension: 1.0, luck: 0, unlockLevel: 7, description: "Poder alto, zona pequena" },
+  { id: "coral", name: "Vara de Coral", icon: "🪸", price: 1000, power: 1.2, tension: 2.0, luck: 0.08, unlockLevel: 7, description: "Zona grande, força baixa" },
+  { id: "electric", name: "Vara Elétrica", icon: "⚡", price: 3000, power: 2.8, tension: 1.2, luck: 0.05, unlockLevel: 12, description: "Velocidade extrema, zona mínima" },
 ];
 
 export const BAITS = [
-  { id: "worm", name: "Minhoca", icon: "🪱", price: 0, attraction: 1, rarityBonus: 0, description: "Bait básica" },
-  { id: "cricket", name: "Grilo", icon: "🦗", price: 5, attraction: 1.3, rarityBonus: 0.05, description: "Atrai peixes maiores" },
-  { id: "shrimp", name: "Camarão", icon: "🦐", price: 15, attraction: 1.5, rarityBonus: 0.1, unlockLevel: 4, description: "Irresistível" },
-  { id: "lure_gold", name: "Isca Dourada", icon: "✨", price: 50, attraction: 2, rarityBonus: 0.2, unlockLevel: 8, description: "Brilha na água" },
-  { id: "lure_magic", name: "Isca Mágica", icon: "🔮", price: 150, attraction: 2.5, rarityBonus: 0.35, unlockLevel: 14, description: "Encantada com magia" },
-  { id: "lure_ancient", name: "Isca Ancestral", icon: "💎", price: 500, attraction: 3, rarityBonus: 0.5, unlockLevel: 19, description: "Relíquia antiga" },
+  { id: "worm", name: "Minhoca", icon: "🪱", price: 0, attraction: 1, rarityBonus: 0, consumable: false, description: "Bait básica" },
+  { id: "cricket", name: "Grilo", icon: "🦗", price: 5, attraction: 1.3, rarityBonus: 0.05, consumable: true, stackSize: 20, description: "Atrai peixes maiores" },
+  { id: "shrimp", name: "Camarão", icon: "🦐", price: 15, attraction: 1.5, rarityBonus: 0.1, consumable: true, stackSize: 15, unlockLevel: 4, description: "Irresistível" },
+  { id: "lure_gold", name: "Isca Dourada", icon: "✨", price: 50, attraction: 2, rarityBonus: 0.2, consumable: true, stackSize: 10, unlockLevel: 8, description: "Brilha na água" },
+  { id: "lure_magic", name: "Isca Mágica", icon: "🔮", price: 150, attraction: 2.5, rarityBonus: 0.35, consumable: true, stackSize: 5, unlockLevel: 14, description: "Encantada com magia" },
+  { id: "lure_ancient", name: "Isca Ancestral", icon: "💎", price: 500, attraction: 3, rarityBonus: 0.5, consumable: true, stackSize: 3, unlockLevel: 19, description: "Relíquia antiga" },
+  // Horizontal alternatives
+  { id: "firefly", name: "Vagalume", icon: "🔥", price: 8, attraction: 1.6, rarityBonus: 0, consumable: true, stackSize: 20, description: "Alta atração, zero rarity" },
+  { id: "golden_worm", name: "Minhoca Dourada", icon: "🌟", price: 12, attraction: 0.8, rarityBonus: 0.15, consumable: true, stackSize: 15, unlockLevel: 4, description: "Lenta, mais raros" },
+  { id: "jellyfish", name: "Água-Viva", icon: "🪼", price: 60, attraction: 1.2, rarityBonus: 0.3, consumable: true, stackSize: 8, unlockLevel: 8, description: "Pouca atração, alta rarity" },
+  { id: "deep_lure", name: "Isca Abissal", icon: "🌌", price: 200, attraction: 3.5, rarityBonus: 0.15, consumable: true, stackSize: 5, unlockLevel: 14, description: "Atração máxima, rarity moderada" },
 ];
 
 export const LINES = [
-  { id: "basic", name: "Linha Básica", icon: "〰️", price: 0, strength: 1, description: "Aguenta o básico" },
-  { id: "nylon", name: "Linha de Nylon", icon: "➰", price: 100, strength: 1.3, unlockLevel: 2, description: "+30% resistência" },
-  { id: "fluoro", name: "Fluorocarbono", icon: "💧", price: 400, strength: 1.6, unlockLevel: 6, description: "Invisível na água" },
-  { id: "braided", name: "Linha Trançada", icon: "🧵", price: 1200, strength: 2, unlockLevel: 10, description: "Ultra resistente" },
-  { id: "steel", name: "Linha de Aço", icon: "⛓️", price: 4000, strength: 2.5, unlockLevel: 15, description: "Indestrutível" },
+  { id: "basic", name: "Linha Básica", icon: "〰️", price: 0, strength: 1, reelBonus: 1.0, description: "Aguenta o básico" },
+  { id: "nylon", name: "Linha de Nylon", icon: "➰", price: 100, strength: 1.3, reelBonus: 1.0, unlockLevel: 2, description: "+30% resistência" },
+  { id: "fluoro", name: "Fluorocarbono", icon: "💧", price: 400, strength: 1.6, reelBonus: 1.0, unlockLevel: 6, description: "Invisível na água" },
+  { id: "braided", name: "Linha Trançada", icon: "🧵", price: 1200, strength: 2, reelBonus: 1.0, unlockLevel: 10, description: "Ultra resistente" },
+  { id: "steel", name: "Linha de Aço", icon: "⛓️", price: 4000, strength: 2.5, reelBonus: 1.0, unlockLevel: 15, description: "Indestrutível" },
+  // Horizontal alternatives
+  { id: "silk", name: "Linha de Seda", icon: "🎀", price: 120, strength: 0.9, reelBonus: 1.4, unlockLevel: 2, description: "Frágil, recolhe rápido" },
+  { id: "elastic", name: "Linha Elástica", icon: "🪀", price: 500, strength: 1.2, reelBonus: 1.5, unlockLevel: 6, description: "Flexível e ágil" },
+  { id: "carbon_fiber", name: "Fibra de Carbono", icon: "⚡", price: 1500, strength: 1.5, reelBonus: 1.6, unlockLevel: 10, description: "Velocidade + resistência moderada" },
+  { id: "mithril_thread", name: "Fio de Mithril", icon: "✨", price: 5000, strength: 1.8, reelBonus: 1.8, unlockLevel: 15, description: "Recolhimento relâmpago" },
 ];
 
 export const ACHIEVEMENTS = [
@@ -129,6 +159,12 @@ export const ACHIEVEMENTS = [
   { id: "collection_50", name: "Colecionador", icon: "📚", description: "Descubra 50% das espécies", check: (s) => s.uniqueSpecies >= Math.floor(FISH_DATABASE.length * 0.5) },
   { id: "collection_100", name: "Enciclopédia Viva", icon: "📖", description: "Descubra todas as espécies", check: (s) => s.uniqueSpecies >= FISH_DATABASE.length },
   { id: "big_fish", name: "Peixão!", icon: "🐋", description: "Pegue um peixe de 100kg+", check: (s) => s.biggestFish >= 100 },
+  // Phase 2 achievements
+  { id: "combo_5", name: "Em Chamas!", icon: "🔥", description: "Alcance combo x5", check: (s) => s.maxCombo >= 5 },
+  { id: "golden_catch", name: "Toque de Midas", icon: "✦", description: "Pegue um peixe dourado", check: (s) => s.goldenCaught >= 1 },
+  { id: "giant_catch", name: "Lenda Viva", icon: "🔺", description: "Pegue um peixe gigante", check: (s) => s.giantCaught >= 1 },
+  { id: "trophy_5", name: "Vitrine", icon: "🏆", description: "Tenha 5 peixes troféu", check: (s) => s.trophyCount >= 5 },
+  { id: "fish_bait", name: "Isca Natural", icon: "🎣", description: "Use um peixe como isca", check: (s) => s.fishUsedAsBait >= 1 },
 ];
 
 export const xpForLevel = (level) => Math.floor(100 * Math.pow(1.4, level - 1));

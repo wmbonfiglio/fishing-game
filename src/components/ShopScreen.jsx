@@ -5,7 +5,8 @@ export default function ShopScreen({ game }) {
     gold, level, shopTab, setShopTab,
     ownedRods, ownedBaits, ownedLines,
     equippedRod, equippedBait, equippedLine,
-    buyItem, setScreen,
+    buyItem, equipBait, setScreen,
+    baitQuantities,
   } = game;
 
   const tabs = [
@@ -14,6 +15,11 @@ export default function ShopScreen({ game }) {
     { id: "lines", name: "Linhas", items: LINES, owned: ownedLines, equipped: equippedLine },
   ];
   const activeTab = tabs.find(t => t.id === shopTab);
+
+  // Sort items by unlockLevel for display
+  const sortedItems = activeTab.items
+    .map((item, idx) => ({ item, idx }))
+    .sort((a, b) => (a.item.unlockLevel ?? 0) - (b.item.unlockLevel ?? 0));
 
   return (
     <div style={{
@@ -44,11 +50,13 @@ export default function ShopScreen({ game }) {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          {activeTab.items.map((item, idx) => {
+          {sortedItems.map(({ item, idx }) => {
             const isOwned = activeTab.owned.includes(idx);
             const isEquipped = activeTab.equipped === idx;
             const locked = item.unlockLevel && level < item.unlockLevel;
-            const canBuy = !isOwned && !locked && gold >= item.price;
+            const isConsumable = shopTab === "baits" && item.consumable;
+            const stock = isConsumable ? (baitQuantities[item.id] || 0) : 0;
+            const canBuy = !locked && gold >= item.price && (isConsumable || !isOwned);
 
             return (
               <div key={item.id} style={{
@@ -58,30 +66,57 @@ export default function ShopScreen({ game }) {
                 opacity: locked ? 0.4 : 1,
                 display: "flex", justifyContent: "space-between", alignItems: "center",
               }}>
-                <div>
+                <div style={{ flex: 1 }}>
                   <div style={{ fontSize: "18px", fontWeight: 600 }}>
                     {item.icon} {item.name}
                     {isEquipped && <span style={{ fontSize: "12px", color: "#42a5f5", marginLeft: "8px" }}>EQUIPADO</span>}
                   </div>
                   <div style={{ fontSize: "13px", color: "#8899AA", marginTop: "4px" }}>{item.description}</div>
                   {locked && <div style={{ fontSize: "12px", color: "#FF6B6B", marginTop: "4px" }}>🔒 Nível {item.unlockLevel}</div>}
+                  {isConsumable && isOwned && (
+                    <div style={{ fontSize: "12px", color: "#81C784", marginTop: "4px" }}>
+                      Estoque: {stock}
+                    </div>
+                  )}
                 </div>
-                <div>
-                  {isOwned ? (
-                    !isEquipped && (
-                      <button onClick={() => buyItem(shopTab, idx)} style={{
-                        padding: "8px 16px", borderRadius: "6px", cursor: "pointer",
-                        background: "rgba(76,175,80,0.2)", border: "1px solid #4CAF50", color: "#4CAF50", fontSize: "13px",
-                      }}>Equipar</button>
-                    )
+                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  {isConsumable ? (
+                    <>
+                      {/* Equip button for consumable if owned, has stock, and not equipped */}
+                      {isOwned && !isEquipped && stock > 0 && (
+                        <button onClick={() => equipBait(idx)} style={{
+                          padding: "8px 16px", borderRadius: "6px", cursor: "pointer",
+                          background: "rgba(76,175,80,0.2)", border: "1px solid #4CAF50", color: "#4CAF50", fontSize: "13px",
+                        }}>Equipar</button>
+                      )}
+                      {/* Buy/Rebuy button */}
+                      <button onClick={() => canBuy && buyItem(shopTab, idx)} style={{
+                        padding: "8px 16px", borderRadius: "6px",
+                        cursor: canBuy ? "pointer" : "not-allowed",
+                        background: canBuy ? "rgba(255,215,0,0.15)" : "rgba(255,255,255,0.03)",
+                        border: canBuy ? "1px solid #FFD700" : "1px solid rgba(255,255,255,0.1)",
+                        color: canBuy ? "#FFD700" : "#555", fontSize: "13px",
+                      }}>
+                        💰 {item.price} (+{item.stackSize})
+                      </button>
+                    </>
                   ) : (
-                    <button onClick={() => canBuy && buyItem(shopTab, idx)} style={{
-                      padding: "8px 16px", borderRadius: "6px",
-                      cursor: canBuy ? "pointer" : "not-allowed",
-                      background: canBuy ? "rgba(255,215,0,0.15)" : "rgba(255,255,255,0.03)",
-                      border: canBuy ? "1px solid #FFD700" : "1px solid rgba(255,255,255,0.1)",
-                      color: canBuy ? "#FFD700" : "#555", fontSize: "13px",
-                    }}>💰 {item.price}</button>
+                    isOwned ? (
+                      !isEquipped && (
+                        <button onClick={() => buyItem(shopTab, idx)} style={{
+                          padding: "8px 16px", borderRadius: "6px", cursor: "pointer",
+                          background: "rgba(76,175,80,0.2)", border: "1px solid #4CAF50", color: "#4CAF50", fontSize: "13px",
+                        }}>Equipar</button>
+                      )
+                    ) : (
+                      <button onClick={() => canBuy && buyItem(shopTab, idx)} style={{
+                        padding: "8px 16px", borderRadius: "6px",
+                        cursor: canBuy ? "pointer" : "not-allowed",
+                        background: canBuy ? "rgba(255,215,0,0.15)" : "rgba(255,255,255,0.03)",
+                        border: canBuy ? "1px solid #FFD700" : "1px solid rgba(255,255,255,0.1)",
+                        color: canBuy ? "#FFD700" : "#555", fontSize: "13px",
+                      }}>💰 {item.price}</button>
+                    )
                   )}
                 </div>
               </div>

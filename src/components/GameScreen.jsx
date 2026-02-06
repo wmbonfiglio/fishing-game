@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { LOCATIONS, FISH_DATABASE, RARITY_COLORS, RARITY_NAMES, TUTORIAL_STEPS } from "../data/gameData";
+import { LOCATIONS, FISH_DATABASE, RARITY_COLORS, RARITY_NAMES, TUTORIAL_STEPS, INVENTORY_CAP } from "../data/gameData";
 
 let particleId = 0;
 
@@ -17,6 +17,8 @@ export default function GameScreen({ game }) {
     tutorialStep,
     isMuted, setIsMuted,
     levelUpData, setLevelUpData,
+    comboCount, currentVariant, fishBaitBonus, baitQuantities, fishInventory,
+    sellFish, keepFish, useFishAsBait,
   } = game;
 
   // Screen shake
@@ -60,6 +62,8 @@ export default function GameScreen({ game }) {
     }
     setPrevPhase(gamePhase);
   }, [gamePhase, catchResult, prevPhase, spawnParticles]);
+
+  const baitQty = bait.consumable ? (baitQuantities[bait.id] || 0) : null;
 
   return (
     <div style={{
@@ -111,7 +115,7 @@ export default function GameScreen({ game }) {
           <div style={{ fontSize: "12px", color: "#6B8FA8", display: "flex", gap: "8px" }}>
             <span>{rod.icon} {rod.name}</span>
             <span>•</span>
-            <span>{bait.icon} {bait.name}</span>
+            <span>{bait.icon} {bait.name}{baitQty !== null ? ` x${baitQty}` : ""}</span>
           </div>
           {/* Mute toggle */}
           <button
@@ -127,12 +131,39 @@ export default function GameScreen({ game }) {
         </div>
       </div>
 
+      {/* Combo HUD */}
+      {comboCount > 1 && gamePhase !== "caught" && (
+        <div style={{
+          position: "absolute", top: "55px", left: "50%", transform: "translateX(-50%)",
+          padding: "6px 18px", borderRadius: "20px", zIndex: 12,
+          background: "rgba(255,140,0,0.25)", border: "1px solid rgba(255,140,0,0.6)",
+          color: "#FFD700", fontWeight: 800, fontSize: "14px",
+          animation: "pulse 1s ease-in-out infinite",
+        }}>
+          COMBO x{Math.min(1 + (comboCount - 1) * 0.5, 2.5).toFixed(1)}
+        </div>
+      )}
+
+      {/* Fish-bait bonus indicator */}
+      {fishBaitBonus > 0 && (
+        <div style={{
+          position: "absolute", top: comboCount > 1 && gamePhase !== "caught" ? "85px" : "55px",
+          left: "50%", transform: "translateX(-50%)",
+          padding: "4px 14px", borderRadius: "12px", zIndex: 12,
+          background: "rgba(76,175,80,0.25)", border: "1px solid rgba(76,175,80,0.5)",
+          color: "#81C784", fontWeight: 600, fontSize: "12px",
+        }}>
+          +{Math.round(fishBaitBonus * 100)}% raridade (isca natural)
+        </div>
+      )}
+
       {/* Navigation buttons */}
       <div style={{
         position: "absolute", bottom: "12px", left: "12px", display: "flex", gap: "6px", zIndex: 10,
       }}>
         {[
           { icon: "🏪", label: "Loja", screen: "shop" },
+          { icon: "🎒", label: `Inv (${fishInventory.length}/${INVENTORY_CAP})`, screen: "inventory" },
           { icon: "📖", label: "Coleção", screen: "collection" },
           { icon: "🏆", label: "Conquistas", screen: "achievements" },
         ].map(btn => (
@@ -260,6 +291,16 @@ export default function GameScreen({ game }) {
               textAlign: "center", padding: "8px 20px", borderRadius: "8px",
               background: "rgba(0,0,0,0.6)", border: `1px solid ${RARITY_COLORS[currentFish.rarity]}55`,
             }}>
+              {currentVariant && currentVariant.id !== "normal" && (
+                <span style={{
+                  fontSize: "11px", padding: "2px 8px", borderRadius: "10px", marginRight: "8px",
+                  background: currentVariant.id === "golden" ? "rgba(255,215,0,0.25)" : "rgba(156,39,176,0.25)",
+                  border: `1px solid ${currentVariant.id === "golden" ? "#FFD700" : "#9C27B0"}`,
+                  color: currentVariant.id === "golden" ? "#FFD700" : "#CE93D8",
+                }}>
+                  {currentVariant.icon} {currentVariant.namePt}
+                </span>
+              )}
               <span style={{ fontSize: "20px" }}>{currentFish.emoji}</span>
               <span style={{ fontSize: "16px", fontWeight: 700, color: RARITY_COLORS[currentFish.rarity], marginLeft: "8px" }}>
                 {currentFish.name}
@@ -369,26 +410,49 @@ export default function GameScreen({ game }) {
           const rarity = catchResult.fish.rarity;
           const isSpecial = rarity === "legendary" || rarity === "mythic";
           const rarityColor = RARITY_COLORS[rarity];
+          const variant = catchResult.variant;
+          const isGolden = variant && variant.id === "golden";
+          const isGiant = variant && variant.id === "giant";
+          const isVariant = isGolden || isGiant;
+          const inventoryFull = fishInventory.length >= INVENTORY_CAP;
           return (
             <div style={{
               textAlign: "center", padding: "24px 40px", borderRadius: "16px",
               background: isSpecial
                 ? `radial-gradient(ellipse at center, ${rarityColor}22 0%, rgba(0,0,0,0.85) 70%)`
                 : "rgba(0,0,0,0.7)",
-              border: `2px solid ${rarityColor}`,
+              border: `2px solid ${isGolden ? "#FFD700" : rarityColor}`,
               backdropFilter: "blur(10px)",
               animation: isSpecial ? "legendaryPopIn 0.5s ease-out" : "popIn 0.3s ease-out",
-              boxShadow: isSpecial ? `0 0 40px ${rarityColor}` : "none",
+              boxShadow: isGolden ? "0 0 40px rgba(255,215,0,0.4)" : isSpecial ? `0 0 40px ${rarityColor}` : "none",
+              minWidth: "300px",
             }}>
-              {isSpecial && (
+              {/* Variant badge */}
+              {isVariant && (
+                <div style={{
+                  display: "inline-block", padding: "4px 14px", borderRadius: "20px", marginBottom: "8px",
+                  background: isGolden ? "rgba(255,215,0,0.2)" : "rgba(156,39,176,0.2)",
+                  border: `1px solid ${isGolden ? "#FFD700" : "#9C27B0"}`,
+                  color: isGolden ? "#FFD700" : "#CE93D8",
+                  fontSize: "13px", fontWeight: 700,
+                }}>
+                  {variant.icon} {variant.namePt}
+                </div>
+              )}
+              {isSpecial && !isVariant && (
                 <div style={{ fontSize: "14px", marginBottom: "4px" }}>
                   {rarity === "mythic" ? "⭐✨⭐" : "⭐"}
                 </div>
               )}
-              <div style={{ fontSize: "48px", marginBottom: "8px" }}>{catchResult.fish.emoji}</div>
+              <div style={{
+                fontSize: isGiant ? "64px" : "48px", marginBottom: "8px",
+                filter: isGolden ? "sepia(1) saturate(3) brightness(1.2)" : "none",
+              }}>
+                {catchResult.fish.emoji}
+              </div>
               <div style={{
                 fontSize: "24px", fontWeight: 800,
-                color: rarityColor,
+                color: isGolden ? "#FFD700" : rarityColor,
               }}>
                 {catchResult.fish.name}
               </div>
@@ -404,16 +468,49 @@ export default function GameScreen({ game }) {
               <div style={{ fontSize: "16px", color: "#FFD700", marginTop: "6px" }}>
                 💰 +{catchResult.sellPrice} moedas
               </div>
+              {catchResult.comboMultiplier > 1 && (
+                <div style={{ fontSize: "13px", color: "#FF9800", marginTop: "4px" }}>
+                  🔥 Combo x{catchResult.comboMultiplier.toFixed(1)}
+                </div>
+              )}
               <div style={{ fontSize: "14px", color: "#64b5f6", marginTop: "4px" }}>
                 ✨ +{catchResult.fish.xp} XP
               </div>
-              <button onClick={resetFishing} style={{
-                marginTop: "18px", padding: "10px 32px", fontSize: "15px", fontWeight: 600,
-                borderRadius: "8px", cursor: "pointer",
-                background: "rgba(66,165,245,0.2)", border: "1px solid #42a5f5", color: "#64b5f6",
-              }}>
-                Pescar Novamente
-              </button>
+
+              {/* 3 action buttons */}
+              <div style={{ display: "flex", gap: "8px", marginTop: "18px", justifyContent: "center" }}>
+                <button onClick={sellFish} style={{
+                  padding: "10px 20px", fontSize: "14px", fontWeight: 600,
+                  borderRadius: "8px", cursor: "pointer",
+                  background: "rgba(255,215,0,0.15)", border: "1px solid #FFD700", color: "#FFD700",
+                  flex: 1,
+                }}>
+                  💰 Vender
+                </button>
+                <button
+                  onClick={keepFish}
+                  disabled={inventoryFull}
+                  style={{
+                    padding: "10px 20px", fontSize: "14px", fontWeight: 600,
+                    borderRadius: "8px", cursor: inventoryFull ? "not-allowed" : "pointer",
+                    background: inventoryFull ? "rgba(255,255,255,0.03)" : "rgba(66,165,245,0.15)",
+                    border: inventoryFull ? "1px solid rgba(255,255,255,0.1)" : "1px solid #42a5f5",
+                    color: inventoryFull ? "#555" : "#64b5f6",
+                    flex: 1,
+                    opacity: inventoryFull ? 0.5 : 1,
+                  }}
+                >
+                  🎒 Guardar
+                </button>
+                <button onClick={useFishAsBait} style={{
+                  padding: "10px 20px", fontSize: "14px", fontWeight: 600,
+                  borderRadius: "8px", cursor: "pointer",
+                  background: "rgba(76,175,80,0.15)", border: "1px solid #4CAF50", color: "#81C784",
+                  flex: 1,
+                }}>
+                  🎣 Isca
+                </button>
+              </div>
             </div>
           );
         })()}
