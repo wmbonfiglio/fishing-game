@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { LOCATIONS, FISH_DATABASE, RARITY_COLORS, RARITY_NAMES, TUTORIAL_STEPS, INVENTORY_CAP, RODS, BAITS, LINES } from "../data/gameData";
+import { LOCATIONS, FISH_DATABASE, RARITY_COLORS, RARITY_NAMES, TUTORIAL_STEPS, INVENTORY_CAP, RODS, BAITS, LINES, WAIT_EVENT_TIMEOUT } from "../data/gameData";
+import MECHANICS from "../hooks/mechanics/mechanicsList";
 
 let particleId = 0;
 
@@ -25,6 +26,8 @@ export default function GameScreen({ game }) {
     dailyMissions, missionProgress,
     currentBoss, bossHp,
     dailyMigrations,
+    // Mechanic
+    mechanic, selectedMechanic, selectedMechanicId, setSelectedMechanicId,
   } = game;
 
   // Screen shake
@@ -168,6 +171,22 @@ export default function GameScreen({ game }) {
           >
             {isMuted ? "\uD83D\uDD07" : "\uD83D\uDD0A"}
           </button>
+          {/* Mechanic selector */}
+          {MECHANICS.length > 1 && gamePhase === "idle" && (
+            <select
+              value={selectedMechanicId}
+              onChange={(e) => setSelectedMechanicId(e.target.value)}
+              style={{
+                background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.15)",
+                borderRadius: "6px", padding: "3px 6px", fontSize: "11px",
+                color: "#8BB4D6", cursor: "pointer",
+              }}
+            >
+              {MECHANICS.map(m => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
@@ -364,146 +383,56 @@ export default function GameScreen({ game }) {
         )}
 
         {/* REELING MINIGAME */}
-        {gamePhase === "reeling" && currentFish && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
-            {/* Boss label */}
-            {currentBoss && (
-              <div style={{
-                padding: "6px 20px", borderRadius: "20px",
-                background: "rgba(244,67,54,0.2)", border: "2px solid #F44336",
-                color: "#FF6B6B", fontWeight: 800, fontSize: "16px", letterSpacing: "2px",
-                animation: "pulse 1.5s ease-in-out infinite",
-              }}>
-                ⚔️ BOSS
-              </div>
-            )}
-
-            {/* Fish info */}
-            <div style={{
-              textAlign: "center", padding: "8px 20px", borderRadius: "8px",
-              background: "rgba(0,0,0,0.6)", border: `1px solid ${currentBoss ? "#F44336" : RARITY_COLORS[currentFish.rarity] + "55"}`,
-            }}>
-              {currentVariant && currentVariant.id !== "normal" && !currentBoss && (
-                <span style={{
-                  fontSize: "11px", padding: "2px 8px", borderRadius: "10px", marginRight: "8px",
-                  background: currentVariant.id === "golden" ? "rgba(255,215,0,0.25)" : "rgba(156,39,176,0.25)",
-                  border: `1px solid ${currentVariant.id === "golden" ? "#FFD700" : "#9C27B0"}`,
-                  color: currentVariant.id === "golden" ? "#FFD700" : "#CE93D8",
-                }}>
-                  {currentVariant.icon} {currentVariant.namePt}
-                </span>
-              )}
-              <span style={{ fontSize: "20px" }}>{currentFish.emoji}</span>
-              <span style={{ fontSize: "16px", fontWeight: 700, color: currentBoss ? "#FF6B6B" : RARITY_COLORS[currentFish.rarity], marginLeft: "8px" }}>
-                {currentFish.name}
-              </span>
-              <span style={{ fontSize: "13px", color: "#8899AA", marginLeft: "8px" }}>{fishWeight}kg</span>
-            </div>
-
-            {/* Catch bar */}
-            <div style={{
-              width: "300px", height: "40px", background: "rgba(0,0,0,0.6)",
-              borderRadius: "20px", position: "relative", overflow: "hidden",
-              border: "2px solid rgba(255,255,255,0.15)",
-            }}>
-              {/* Catch zone */}
-              <div style={{
-                position: "absolute", top: "2px", bottom: "2px",
-                left: `${Math.max(0, catchZonePos - catchZoneSize / 2)}%`,
-                width: `${catchZoneSize}%`,
-                background: Math.abs(fishPosition - catchZonePos) < catchZoneSize / 2
-                  ? "rgba(76,175,80,0.4)" : "rgba(66,165,245,0.25)",
-                borderRadius: "18px", transition: "background 0.15s, left 0.05s",
-                border: Math.abs(fishPosition - catchZonePos) < catchZoneSize / 2
-                  ? "1px solid rgba(76,175,80,0.6)" : "1px solid rgba(66,165,245,0.3)",
-              }} />
-
-              {/* Fish indicator */}
-              <div style={{
-                position: "absolute", top: "50%", transform: "translate(-50%, -50%)",
-                left: `${fishPosition}%`,
-                fontSize: "24px", transition: "left 0.05s",
-                filter: "drop-shadow(0 0 6px rgba(255,255,255,0.5))",
-              }}>
-                {currentFish.emoji}
-              </div>
-            </div>
-
-            {/* Fish shadow underwater */}
-            <div style={{
-              fontSize: "32px", opacity: 0.4,
-              filter: "blur(4px) brightness(0.5)",
-              transform: `translateX(${(fishPosition - 50) * 2}px)`,
-              transition: "transform 0.1s",
-              pointerEvents: "none",
-            }}>
-              {currentFish.emoji}
-            </div>
-
-            {/* Progress / Boss HP bar */}
-            <div style={{ width: "300px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#6B8FA8", marginBottom: "4px" }}>
-                <span>{currentBoss ? `❤️ HP: ${Math.round(bossHp)}/${currentBoss.hp}` : "Progresso"}</span>
-                <span>{Math.round(reelProgress)}%</span>
-              </div>
-              <div style={{
-                width: "100%", height: "10px", background: "rgba(0,0,0,0.5)",
-                borderRadius: "5px", overflow: "hidden",
-              }}>
-                {currentBoss ? (
-                  <div style={{
-                    width: `${(bossHp / currentBoss.hp) * 100}%`, height: "100%",
-                    background: bossHp / currentBoss.hp > 0.5 ? "linear-gradient(90deg, #F44336, #FF5722)" : "linear-gradient(90deg, #FF1744, #D50000)",
-                    borderRadius: "5px", transition: "width 0.1s",
-                  }} />
-                ) : (
-                  <div style={{
-                    width: `${reelProgress}%`, height: "100%",
-                    background: "linear-gradient(90deg, #4CAF50, #8BC34A)",
-                    borderRadius: "5px", transition: "width 0.1s",
-                  }} />
-                )}
-              </div>
-            </div>
-
-            {/* Tension bar */}
-            <div style={{ width: "300px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#6B8FA8", marginBottom: "4px" }}>
-                <span>Tensão</span>
-                <span style={{ color: tension > 70 ? "#F44336" : tension > 40 ? "#FF9800" : "#6B8FA8" }}>
-                  {Math.round(tension)}%
-                </span>
-              </div>
-              <div style={{
-                width: "100%", height: "10px", background: "rgba(0,0,0,0.5)",
-                borderRadius: "5px", overflow: "hidden",
-              }}>
+        {gamePhase === "reeling" && currentFish && (() => {
+          const MechanicUI = selectedMechanic.UIComponent;
+          return (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+              {/* Boss label */}
+              {currentBoss && (
                 <div style={{
-                  width: `${tension}%`, height: "100%",
-                  background: tension > 70 ? "linear-gradient(90deg, #FF9800, #F44336)" :
-                    tension > 40 ? "linear-gradient(90deg, #FFC107, #FF9800)" : "#42a5f5",
-                  borderRadius: "5px", transition: "width 0.1s",
-                }} />
-              </div>
-            </div>
+                  padding: "6px 20px", borderRadius: "20px",
+                  background: "rgba(244,67,54,0.2)", border: "2px solid #F44336",
+                  color: "#FF6B6B", fontWeight: 800, fontSize: "16px", letterSpacing: "2px",
+                  animation: "pulse 1.5s ease-in-out infinite",
+                }}>
+                  ⚔️ BOSS
+                </div>
+              )}
 
-            {/* Reel button for mobile */}
-            <button
-              onMouseDown={() => keysRef.current.space = true}
-              onMouseUp={() => keysRef.current.space = false}
-              onMouseLeave={() => keysRef.current.space = false}
-              onTouchStart={(e) => { e.preventDefault(); keysRef.current.space = true; }}
-              onTouchEnd={(e) => { e.preventDefault(); keysRef.current.space = false; }}
-              style={{
-                padding: "14px 48px", fontSize: "16px", fontWeight: 700, borderRadius: "12px",
-                background: "rgba(66,165,245,0.25)", border: "2px solid #42a5f5",
-                color: "#64b5f6", cursor: "pointer", marginTop: "4px",
-              }}
-            >
-              SEGURAR PARA RECOLHER
-            </button>
-          </div>
-        )}
+              {/* Fish info */}
+              <div style={{
+                textAlign: "center", padding: "8px 20px", borderRadius: "8px",
+                background: "rgba(0,0,0,0.6)", border: `1px solid ${currentBoss ? "#F44336" : RARITY_COLORS[currentFish.rarity] + "55"}`,
+              }}>
+                {currentVariant && currentVariant.id !== "normal" && !currentBoss && (
+                  <span style={{
+                    fontSize: "11px", padding: "2px 8px", borderRadius: "10px", marginRight: "8px",
+                    background: currentVariant.id === "golden" ? "rgba(255,215,0,0.25)" : "rgba(156,39,176,0.25)",
+                    border: `1px solid ${currentVariant.id === "golden" ? "#FFD700" : "#9C27B0"}`,
+                    color: currentVariant.id === "golden" ? "#FFD700" : "#CE93D8",
+                  }}>
+                    {currentVariant.icon} {currentVariant.namePt}
+                  </span>
+                )}
+                <span style={{ fontSize: "20px" }}>{currentFish.emoji}</span>
+                <span style={{ fontSize: "16px", fontWeight: 700, color: currentBoss ? "#FF6B6B" : RARITY_COLORS[currentFish.rarity], marginLeft: "8px" }}>
+                  {currentFish.name}
+                </span>
+                <span style={{ fontSize: "13px", color: "#8899AA", marginLeft: "8px" }}>{fishWeight}kg</span>
+              </div>
+
+              {/* Mechanic-specific UI */}
+              <MechanicUI
+                mechanic={mechanic}
+                currentFish={currentFish}
+                currentBoss={currentBoss}
+                bossHp={bossHp}
+                reelProgress={reelProgress}
+                keysRef={keysRef}
+              />
+            </div>
+          );
+        })()}
 
         {/* Caught result */}
         {gamePhase === "caught" && catchResult && (() => {
